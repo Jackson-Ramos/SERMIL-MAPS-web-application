@@ -1,0 +1,202 @@
+import { Condominio, Configuracoes, Quadra, Lote, Visita, QRCode, Morador } from '../types';
+
+export const mockCondominio: Condominio = {
+  id: 1,
+  nome: 'Condomínio Jardim das Flores',
+  cidade: 'Brasília',
+  ramal_portaria: '9000',
+};
+
+export const mockConfiguracoes: Configuracoes = {
+  tempo_maximo_visita: 60,
+  mapa_interno_ativo: true,
+  google_maps_ativo: true,
+  waze_ativo: true,
+  ramal_flutuante_ativo: true,
+  expiracao_automatica_ativa: true,
+};
+
+export const mockQuadras: Quadra[] = [
+  { id: 1, nome: 'A', cond_id: 1 },
+  { id: 2, nome: 'B', cond_id: 1 },
+  { id: 3, nome: 'C', cond_id: 1 },
+  { id: 4, nome: 'D', cond_id: 1 },
+];
+
+export const mockLotes: { [key: number]: Lote[] } = {
+  1: [
+    {
+      id: 1,
+      numero: '1',
+      quadra_id: 1,
+      nome_morador: 'João Silva',
+      ramal: '1001',
+      latitude: -15.7801,
+      longitude: -47.9292,
+    },
+    {
+      id: 2,
+      numero: '2',
+      quadra_id: 1,
+      nome_morador: 'Maria Santos',
+      ramal: '1002',
+      latitude: -15.7805,
+      longitude: -47.9295,
+    },
+    {
+      id: 3,
+      numero: '3',
+      quadra_id: 1,
+      nome_morador: null,
+      ramal: null,
+      latitude: -15.7808,
+      longitude: -47.9298,
+    },
+    {
+      id: 4,
+      numero: '4',
+      quadra_id: 1,
+      nome_morador: 'Pedro Oliveira',
+      ramal: '1004',
+      latitude: -15.7812,
+      longitude: -47.9301,
+    },
+    {
+      id: 5,
+      numero: '5',
+      quadra_id: 1,
+      nome_morador: 'Ana Costa',
+      ramal: '1005',
+      latitude: -15.7815,
+      longitude: -47.9304,
+    },
+    {
+      id: 6,
+      numero: '6',
+      quadra_id: 1,
+      nome_morador: null,
+      ramal: null,
+      latitude: -15.7818,
+      longitude: -47.9307,
+    },
+    {
+      id: 7,
+      numero: '7',
+      quadra_id: 1,
+      nome_morador: 'Carlos Pereira',
+      ramal: '1007',
+      latitude: -15.7821,
+      longitude: -47.9310,
+    },
+    {
+      id: 8,
+      numero: '8',
+      quadra_id: 1,
+      nome_morador: 'Lucia Fernandes',
+      ramal: '1008',
+      latitude: -15.7824,
+      longitude: -47.9313,
+    },
+  ],
+  2: [
+    {
+      id: 9,
+      numero: '1',
+      quadra_id: 2,
+      nome_morador: 'Roberto Lima',
+      ramal: '2001',
+      latitude: -15.7827,
+      longitude: -47.9316,
+    },
+    {
+      id: 10,
+      numero: '2',
+      quadra_id: 2,
+      nome_morador: 'Fernanda Souza',
+      ramal: '2002',
+      latitude: -15.7830,
+      longitude: -47.9319,
+    },
+  ],
+  3: [],
+  4: [],
+};
+
+export const mockVisitas: Visita[] = [
+  {
+    id: 1,
+    cpf: '123.456.789-00',
+    lote_id: 1,
+    cond_id: 1,
+    quadra: 'A',
+    lote: '1',
+    horario_entrada: new Date(Date.now() - 15 * 60000).toISOString(),
+    horario_saida: null,
+    duracao_minutos: null,
+    app_navegacao: 'interno',
+    status: 'ativa',
+    rota: { tipo: 'interno' },
+    observacoes: null,
+  },
+  {
+    id: 2,
+    cpf: '987.654.321-00',
+    lote_id: 4,
+    cond_id: 1,
+    quadra: 'A',
+    lote: '4',
+    horario_entrada: new Date(Date.now() - 45 * 60000).toISOString(),
+    horario_saida: null,
+    duracao_minutos: null,
+    app_navegacao: 'gmaps',
+    status: 'ativa',
+    rota: { tipo: 'gmaps' },
+    observacoes: null,
+  },
+];
+
+export const mockQRCodes: QRCode[] = [
+  {
+    id: 1,
+    cond_id: 1,
+    nome_portao: 'Portão Principal',
+    url: 'http://localhost:5173/visitante?cond=1&gate=1',
+    ativo: true,
+    criado_em: new Date().toISOString(),
+  },
+  {
+    id: 2,
+    cond_id: 1,
+    nome_portao: 'Portão Lateral',
+    url: 'http://localhost:5173/visitante?cond=1&gate=2',
+    ativo: true,
+    criado_em: new Date().toISOString(),
+  },
+];
+
+export const mockMoradores: Morador[] = [
+  {
+    id: 1,
+    nome: 'João Silva',
+    quadra: 'A',
+    lote: '1',
+    ramal: '1001',
+    total_visitas: 45,
+  },
+  {
+    id: 2,
+    nome: 'Maria Santos',
+    quadra: 'A',
+    lote: '2',
+    ramal: '1002',
+    total_visitas: 32,
+  },
+  {
+    id: 3,
+    nome: 'Pedro Oliveira',
+    quadra: 'A',
+    lote: '4',
+    ramal: '1004',
+    total_visitas: 28,
+  },
+];
