@@ -18,8 +18,14 @@ export async function getQuadras(condId: number): Promise<Quadra[]> {
 }
 
 export async function createQuadra(data: Partial<Quadra>): Promise<Quadra> {
-  const response = await api.post('/quadras', data);
-  return response.data;
+  try {
+    const response = await api.post('/quadras', data);
+    if (!response.data && USE_MOCK) return await mockAPI.createQuadra(data) as Quadra;
+    return response.data;
+  } catch (error) {
+    if (USE_MOCK) return await mockAPI.createQuadra(data) as Quadra;
+    throw error;
+  }
 }
 
 export async function updateQuadra(id: number, data: Partial<Quadra>): Promise<Quadra> {

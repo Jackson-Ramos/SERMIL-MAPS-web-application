@@ -49,9 +49,36 @@ export const mockAPI = {
     });
   },
 
+  createQuadra: (data: any) => {
+    return new Promise((resolve) => {
+      const nova = { id: mockQuadras.length + 1, nome: data.nome, cond_id: data.cond_id };
+      mockQuadras.push(nova);
+      mockLotes[nova.id] = [];
+      setTimeout(() => resolve(nova), 300);
+    });
+  },
+
   getLotes: (quadraId: number) => {
     return new Promise((resolve) => {
       setTimeout(() => resolve(mockLotes[quadraId] || []), 300);
+    });
+  },
+
+  createLote: (data: any) => {
+    return new Promise((resolve) => {
+      const allIds = Object.values(mockLotes).flat().map((l) => l.id);
+      const novo = {
+        id: allIds.length > 0 ? Math.max(...allIds) + 1 : 1,
+        numero: data.numero,
+        quadra_id: data.quadra_id,
+        nome_morador: data.nome_morador || null,
+        ramal: data.ramal || null,
+        latitude: data.latitude ?? null,
+        longitude: data.longitude ?? null,
+      };
+      if (!mockLotes[data.quadra_id]) mockLotes[data.quadra_id] = [];
+      mockLotes[data.quadra_id].push(novo);
+      setTimeout(() => resolve(novo), 300);
     });
   },
 

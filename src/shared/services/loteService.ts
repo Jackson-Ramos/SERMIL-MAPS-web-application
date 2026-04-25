@@ -18,8 +18,14 @@ export async function getLotes(quadraId: number): Promise<Lote[]> {
 }
 
 export async function createLote(data: Partial<Lote>): Promise<Lote> {
-  const response = await api.post('/lotes', data);
-  return response.data;
+  try {
+    const response = await api.post('/lotes', data);
+    if (!response.data && USE_MOCK) return await mockAPI.createLote(data) as Lote;
+    return response.data;
+  } catch (error) {
+    if (USE_MOCK) return await mockAPI.createLote(data) as Lote;
+    throw error;
+  }
 }
 
 export async function updateLote(id: number, data: Partial<Lote>): Promise<Lote> {
