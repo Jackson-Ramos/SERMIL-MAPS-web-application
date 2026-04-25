@@ -33,10 +33,23 @@ export interface Lote {
 export interface Morador {
   id: number;
   nome: string;
+  cpf: string;
+  lote_id: number;
   quadra: string;
   lote: string;
   ramal: string;
+  user_id: number | null;
   total_visitas: number;
+}
+
+export interface Usuario {
+  id: number;
+  nome: string;
+  email: string;
+  papel: 'admin' | 'porteiro' | 'morador';
+  cond_id: number;
+  ativo: boolean;
+  criado_em: string;
 }
 
 export interface Visita {

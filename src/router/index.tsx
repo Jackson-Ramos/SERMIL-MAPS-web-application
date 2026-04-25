@@ -7,6 +7,7 @@ import DashboardPage from '../modules/admin/pages/DashboardPage';
 import VisitasPage from '../modules/admin/pages/VisitasPage';
 import QuadrasLotesPage from '../modules/admin/pages/QuadrasLotesPage';
 import MoradoresPage from '../modules/admin/pages/MoradoresPage';
+import UsuariosPage from '../modules/admin/pages/UsuariosPage';
 import QrCodePage from '../modules/admin/pages/QrCodePage';
 import ConfiguracoesPage from '../modules/admin/pages/ConfiguracoesPage';
 
@@ -37,6 +38,7 @@ export default function Router() {
         <Route path="/admin/visitas" element={<ProtectedRoute roleRequired="admin"><AdminLayout><VisitasPage /></AdminLayout></ProtectedRoute>} />
         <Route path="/admin/quadras-lotes" element={<ProtectedRoute roleRequired="admin"><AdminLayout><QuadrasLotesPage /></AdminLayout></ProtectedRoute>} />
         <Route path="/admin/moradores" element={<ProtectedRoute roleRequired="admin"><AdminLayout><MoradoresPage /></AdminLayout></ProtectedRoute>} />
+        <Route path="/admin/usuarios" element={<ProtectedRoute roleRequired="admin"><AdminLayout><UsuariosPage /></AdminLayout></ProtectedRoute>} />
         <Route path="/admin/qrcode" element={<ProtectedRoute roleRequired="admin"><AdminLayout><QrCodePage /></AdminLayout></ProtectedRoute>} />
         <Route path="/admin/configuracoes" element={<ProtectedRoute roleRequired="admin"><AdminLayout><ConfiguracoesPage /></AdminLayout></ProtectedRoute>} />
 

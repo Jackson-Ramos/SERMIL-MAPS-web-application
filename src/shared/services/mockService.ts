@@ -6,10 +6,17 @@ import {
   mockVisitas,
   mockQRCodes,
   mockMoradores,
+  mockUsuarios,
 } from '../data/mockData';
 
 let visitasAtivas = [...mockVisitas];
 let visitaIdCounter = 3;
+
+let moradores = [...mockMoradores];
+let moradorIdCounter = moradores.length + 1;
+
+let usuarios = [...mockUsuarios];
+let usuarioIdCounter = usuarios.length + 1;
 
 export const mockAPI = {
   getCondominio: (condId: number) => {
@@ -171,6 +178,116 @@ export const mockAPI = {
 
   revogarQrCode: (qrId: number) => {
     return new Promise((resolve) => {
+      setTimeout(() => resolve(null), 300);
+    });
+  },
+
+  getMoradores: (condId: number) => {
+    return new Promise((resolve) => {
+      setTimeout(() => resolve([...moradores]), 300);
+    });
+  },
+
+  createMorador: (data: any) => {
+    return new Promise((resolve) => {
+      const lote = Object.values(mockLotes).flat().find((l) => l.id === data.lote_id);
+      const quadra = mockQuadras.find((q) => q.id === lote?.quadra_id);
+      const novo = {
+        id: moradorIdCounter++,
+        nome: data.nome,
+        cpf: data.cpf,
+        lote_id: data.lote_id,
+        quadra: quadra?.nome || '',
+        lote: lote?.numero || '',
+        ramal: data.ramal,
+        user_id: null,
+        total_visitas: 0,
+      };
+      moradores.push(novo);
+      setTimeout(() => resolve(novo), 300);
+    });
+  },
+
+  updateMorador: (id: number, data: any) => {
+    return new Promise((resolve) => {
+      const index = moradores.findIndex((m) => m.id === id);
+      if (index !== -1) {
+        const lote = data.lote_id
+          ? Object.values(mockLotes).flat().find((l) => l.id === data.lote_id)
+          : null;
+        const quadra = lote
+          ? mockQuadras.find((q) => q.id === lote.quadra_id)
+          : null;
+        moradores[index] = {
+          ...moradores[index],
+          ...data,
+          ...(quadra && { quadra: quadra.nome }),
+          ...(lote && { lote: lote.numero }),
+        };
+        setTimeout(() => resolve(moradores[index]), 300);
+      } else {
+        setTimeout(() => resolve(null), 300);
+      }
+    });
+  },
+
+  deleteMorador: (id: number) => {
+    return new Promise((resolve) => {
+      moradores = moradores.filter((m) => m.id !== id);
+      setTimeout(() => resolve(null), 300);
+    });
+  },
+
+  getUsuarios: (condId: number) => {
+    return new Promise((resolve) => {
+      setTimeout(() => resolve([...usuarios]), 300);
+    });
+  },
+
+  createUsuario: (data: any) => {
+    return new Promise((resolve) => {
+      const novo = {
+        id: usuarioIdCounter++,
+        nome: data.nome,
+        email: data.email,
+        papel: data.papel,
+        cond_id: data.cond_id,
+        ativo: true,
+        criado_em: new Date().toISOString(),
+      };
+      usuarios.push(novo);
+      setTimeout(() => resolve(novo), 300);
+    });
+  },
+
+  updateUsuario: (id: number, data: any) => {
+    return new Promise((resolve) => {
+      const index = usuarios.findIndex((u) => u.id === id);
+      if (index !== -1) {
+        const { senha, ...rest } = data;
+        usuarios[index] = { ...usuarios[index], ...rest };
+        setTimeout(() => resolve(usuarios[index]), 300);
+      } else {
+        setTimeout(() => resolve(null), 300);
+      }
+    });
+  },
+
+  toggleAtivoUsuario: (id: number) => {
+    return new Promise((resolve) => {
+      const index = usuarios.findIndex((u) => u.id === id);
+      if (index !== -1) {
+        usuarios[index] = { ...usuarios[index], ativo: !usuarios[index].ativo };
+        setTimeout(() => resolve(usuarios[index]), 300);
+      } else {
+        setTimeout(() => resolve(null), 300);
+      }
+    });
+  },
+
+  deleteUsuario: (id: number) => {
+    return new Promise((resolve) => {
+      usuarios = usuarios.filter((u) => u.id !== id);
       setTimeout(() => resolve(null), 300);
     });
   },
