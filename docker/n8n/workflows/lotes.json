@@ -1,0 +1,229 @@
+{
+  "name": "SERMIL — Lotes",
+  "nodes": [
+    {
+      "id": "lote-wh-list",
+      "name": "GET Lotes",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 200],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lotes/list",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "lote-wh-list-id"
+    },
+    {
+      "id": "lote-oracle-list",
+      "name": "Oracle SELECT Lotes",
+      "type": "n8n-nodes-base.oracleDatabase",
+      "typeVersion": 1,
+      "position": [460, 200],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT l.id, l.quadra_id, l.numero, l.latitude, l.longitude, m.nome AS nome_morador, m.ramal FROM lotes l LEFT JOIN moradores m ON m.lote_id = l.id WHERE l.quadra_id = {{ $json.body.quadra_id }} ORDER BY l.numero ASC",
+        "options": {}
+      },
+      "credentials": {
+        "oracleDb": {
+          "id": "ORACLE_CREDENTIAL_ID",
+          "name": "Oracle SERMIL"
+        }
+      }
+    },
+    {
+      "id": "lote-respond-list",
+      "name": "Respond GET Lotes",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [720, 200],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      }
+    },
+
+    {
+      "id": "lote-wh-create",
+      "name": "POST Lote",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 420],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lotes/create",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "lote-wh-create-id"
+    },
+    {
+      "id": "lote-oracle-insert",
+      "name": "Oracle INSERT Lote",
+      "type": "n8n-nodes-base.oracleDatabase",
+      "typeVersion": 1,
+      "position": [460, 420],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO lotes (quadra_id, numero, latitude, longitude) VALUES ({{ $json.body.quadra_id }}, '{{ $json.body.numero }}', {{ $json.body.latitude ?? 'NULL' }}, {{ $json.body.longitude ?? 'NULL' }})",
+        "options": {}
+      },
+      "credentials": {
+        "oracleDb": {
+          "id": "ORACLE_CREDENTIAL_ID",
+          "name": "Oracle SERMIL"
+        }
+      }
+    },
+    {
+      "id": "lote-oracle-select-new",
+      "name": "Oracle SELECT Novo Lote",
+      "type": "n8n-nodes-base.oracleDatabase",
+      "typeVersion": 1,
+      "position": [720, 420],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT id, quadra_id, numero, latitude, longitude FROM lotes WHERE quadra_id = {{ $('POST Lote').first().json.body.quadra_id }} AND numero = '{{ $('POST Lote').first().json.body.numero }}'",
+        "options": {}
+      },
+      "credentials": {
+        "oracleDb": {
+          "id": "ORACLE_CREDENTIAL_ID",
+          "name": "Oracle SERMIL"
+        }
+      }
+    },
+    {
+      "id": "lote-respond-create",
+      "name": "Respond POST Lote",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [980, 420],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      }
+    },
+
+    {
+      "id": "lote-wh-update",
+      "name": "PUT Lote",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 640],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lotes/update",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "lote-wh-update-id"
+    },
+    {
+      "id": "lote-oracle-update",
+      "name": "Oracle UPDATE Lote",
+      "type": "n8n-nodes-base.oracleDatabase",
+      "typeVersion": 1,
+      "position": [460, 640],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE lotes SET numero = '{{ $json.body.numero }}', latitude = {{ $json.body.latitude ?? 'NULL' }}, longitude = {{ $json.body.longitude ?? 'NULL' }} WHERE id = {{ $json.body.id }}",
+        "options": {}
+      },
+      "credentials": {
+        "oracleDb": {
+          "id": "ORACLE_CREDENTIAL_ID",
+          "name": "Oracle SERMIL"
+        }
+      }
+    },
+    {
+      "id": "lote-respond-update",
+      "name": "Respond PUT Lote",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [720, 640],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": true }"
+      }
+    },
+
+    {
+      "id": "lote-wh-import",
+      "name": "POST Import Lotes",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 860],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lotes/import",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "lote-wh-import-id"
+    },
+    {
+      "id": "lote-split-import",
+      "name": "Split Rows CSV",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [460, 860],
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      }
+    },
+    {
+      "id": "lote-oracle-import",
+      "name": "Oracle INSERT Lote CSV",
+      "type": "n8n-nodes-base.oracleDatabase",
+      "typeVersion": 1,
+      "position": [720, 860],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO lotes (quadra_id, numero, latitude, longitude) VALUES ({{ $json.quadra_id }}, '{{ $json.numero }}', {{ $json.latitude ?? 'NULL' }}, {{ $json.longitude ?? 'NULL' }})",
+        "options": {}
+      },
+      "credentials": {
+        "oracleDb": {
+          "id": "ORACLE_CREDENTIAL_ID",
+          "name": "Oracle SERMIL"
+        }
+      }
+    },
+    {
+      "id": "lote-respond-import",
+      "name": "Respond POST Import",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [980, 860],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": true, \"imported\": true }"
+      }
+    }
+  ],
+  "connections": {
+    "GET Lotes":             { "main": [[{ "node": "Oracle SELECT Lotes",    "type": "main", "index": 0 }]] },
+    "Oracle SELECT Lotes":   { "main": [[{ "node": "Respond GET Lotes",      "type": "main", "index": 0 }]] },
+    "POST Lote":             { "main": [[{ "node": "Oracle INSERT Lote",     "type": "main", "index": 0 }]] },
+    "Oracle INSERT Lote":    { "main": [[{ "node": "Oracle SELECT Novo Lote","type": "main", "index": 0 }]] },
+    "Oracle SELECT Novo Lote":{ "main": [[{ "node": "Respond POST Lote",    "type": "main", "index": 0 }]] },
+    "PUT Lote":              { "main": [[{ "node": "Oracle UPDATE Lote",     "type": "main", "index": 0 }]] },
+    "Oracle UPDATE Lote":    { "main": [[{ "node": "Respond PUT Lote",       "type": "main", "index": 0 }]] },
+    "POST Import Lotes":     { "main": [[{ "node": "Split Rows CSV",         "type": "main", "index": 0 }]] },
+    "Split Rows CSV":        {
+      "main": [
+        [{ "node": "Oracle INSERT Lote CSV", "type": "main", "index": 0 }],
+        [{ "node": "Respond POST Import",    "type": "main", "index": 0 }]
+      ]
+    },
+    "Oracle INSERT Lote CSV":{ "main": [[{ "node": "Split Rows CSV",         "type": "main", "index": 0 }]] }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "sermil" }]
+}

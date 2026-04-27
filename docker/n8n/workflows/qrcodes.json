@@ -1,0 +1,231 @@
+{
+  "name": "SERMIL — QR Codes",
+  "nodes": [
+    {
+      "id": "qr-wh-list",
+      "name": "GET QRCodes",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 200],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "qrcodes/list",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "qr-wh-list-id"
+    },
+    {
+      "id": "qr-oracle-list",
+      "name": "Oracle SELECT QRCodes",
+      "type": "n8n-nodes-base.oracleDatabase",
+      "typeVersion": 1,
+      "position": [460, 200],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT id, cond_id, criado_por, nome_portao, url, ativo, uso_unico, usos, TO_CHAR(expira_em, 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') AS expira_em, TO_CHAR(criado_em, 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') AS criado_em FROM qr_codes WHERE cond_id = {{ $json.body.cond_id }} ORDER BY criado_em DESC",
+        "options": {}
+      },
+      "credentials": {
+        "oracleDb": {
+          "id": "ORACLE_CREDENTIAL_ID",
+          "name": "Oracle SERMIL"
+        }
+      }
+    },
+    {
+      "id": "qr-respond-list",
+      "name": "Respond GET QRCodes",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [720, 200],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      }
+    },
+
+    {
+      "id": "qr-wh-create",
+      "name": "POST QRCode",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 440],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "qrcodes/create",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "qr-wh-create-id"
+    },
+    {
+      "id": "qr-oracle-insert",
+      "name": "Oracle INSERT QRCode",
+      "type": "n8n-nodes-base.oracleDatabase",
+      "typeVersion": 1,
+      "position": [460, 440],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO qr_codes (cond_id, criado_por, nome_portao, token, url, ativo, uso_unico, expira_em) VALUES ({{ $json.body.cond_id }}, {{ $json.body.criado_por }}, '{{ $json.body.nome_portao }}', '{{ $json.body.token }}', '{{ $json.body.url }}', 1, {{ $json.body.uso_unico ? 1 : 0 }}, {{ $json.body.expira_em ? `TO_TIMESTAMP_TZ('${$json.body.expira_em}', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')` : 'NULL' }})",
+        "options": {}
+      },
+      "credentials": {
+        "oracleDb": {
+          "id": "ORACLE_CREDENTIAL_ID",
+          "name": "Oracle SERMIL"
+        }
+      }
+    },
+    {
+      "id": "qr-oracle-select-new",
+      "name": "Oracle SELECT Novo QR",
+      "type": "n8n-nodes-base.oracleDatabase",
+      "typeVersion": 1,
+      "position": [720, 440],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT id, cond_id, criado_por, nome_portao, url, ativo, uso_unico, usos, TO_CHAR(expira_em, 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') AS expira_em, TO_CHAR(criado_em, 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') AS criado_em FROM qr_codes WHERE token = '{{ $('POST QRCode').first().json.body.token }}'",
+        "options": {}
+      },
+      "credentials": {
+        "oracleDb": {
+          "id": "ORACLE_CREDENTIAL_ID",
+          "name": "Oracle SERMIL"
+        }
+      }
+    },
+    {
+      "id": "qr-respond-create",
+      "name": "Respond POST QRCode",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [980, 440],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      }
+    },
+
+    {
+      "id": "qr-wh-revoke",
+      "name": "DELETE QRCode",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 680],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "qrcodes/revoke",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "qr-wh-revoke-id"
+    },
+    {
+      "id": "qr-oracle-revoke",
+      "name": "Oracle REVOKE QRCode",
+      "type": "n8n-nodes-base.oracleDatabase",
+      "typeVersion": 1,
+      "position": [460, 680],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE qr_codes SET ativo = 0 WHERE id = {{ $json.body.id }} AND cond_id = {{ $json.body.cond_id }}",
+        "options": {}
+      },
+      "credentials": {
+        "oracleDb": {
+          "id": "ORACLE_CREDENTIAL_ID",
+          "name": "Oracle SERMIL"
+        }
+      }
+    },
+    {
+      "id": "qr-respond-revoke",
+      "name": "Respond DELETE QRCode",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [720, 680],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": true }"
+      }
+    },
+
+    {
+      "id": "qr-wh-validate",
+      "name": "POST Validar Token",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 900],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "qrcodes/validate",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "qr-wh-validate-id"
+    },
+    {
+      "id": "qr-oracle-validate",
+      "name": "Oracle SELECT Validar",
+      "type": "n8n-nodes-base.oracleDatabase",
+      "typeVersion": 1,
+      "position": [460, 900],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT id, cond_id, nome_portao, ativo, uso_unico, usos, expira_em FROM qr_codes WHERE token = '{{ $json.body.token }}' AND ativo = 1 AND (expira_em IS NULL OR expira_em > SYSTIMESTAMP)",
+        "options": {}
+      },
+      "credentials": {
+        "oracleDb": {
+          "id": "ORACLE_CREDENTIAL_ID",
+          "name": "Oracle SERMIL"
+        }
+      }
+    },
+    {
+      "id": "qr-oracle-increment",
+      "name": "Oracle INCREMENT Usos",
+      "type": "n8n-nodes-base.oracleDatabase",
+      "typeVersion": 1,
+      "position": [720, 900],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE qr_codes SET usos = usos + 1 WHERE token = '{{ $('POST Validar Token').first().json.body.token }}'",
+        "options": {}
+      },
+      "credentials": {
+        "oracleDb": {
+          "id": "ORACLE_CREDENTIAL_ID",
+          "name": "Oracle SERMIL"
+        }
+      }
+    },
+    {
+      "id": "qr-respond-validate",
+      "name": "Respond POST Validar",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [980, 900],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $('Oracle SELECT Validar').first().json }}"
+      }
+    }
+  ],
+  "connections": {
+    "GET QRCodes":            { "main": [[{ "node": "Oracle SELECT QRCodes",  "type": "main", "index": 0 }]] },
+    "Oracle SELECT QRCodes":  { "main": [[{ "node": "Respond GET QRCodes",    "type": "main", "index": 0 }]] },
+    "POST QRCode":            { "main": [[{ "node": "Oracle INSERT QRCode",   "type": "main", "index": 0 }]] },
+    "Oracle INSERT QRCode":   { "main": [[{ "node": "Oracle SELECT Novo QR",  "type": "main", "index": 0 }]] },
+    "Oracle SELECT Novo QR":  { "main": [[{ "node": "Respond POST QRCode",    "type": "main", "index": 0 }]] },
+    "DELETE QRCode":          { "main": [[{ "node": "Oracle REVOKE QRCode",   "type": "main", "index": 0 }]] },
+    "Oracle REVOKE QRCode":   { "main": [[{ "node": "Respond DELETE QRCode",  "type": "main", "index": 0 }]] },
+    "POST Validar Token":     { "main": [[{ "node": "Oracle SELECT Validar",  "type": "main", "index": 0 }]] },
+    "Oracle SELECT Validar":  { "main": [[{ "node": "Oracle INCREMENT Usos",  "type": "main", "index": 0 }]] },
+    "Oracle INCREMENT Usos":  { "main": [[{ "node": "Respond POST Validar",   "type": "main", "index": 0 }]] }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "sermil" }]
+}

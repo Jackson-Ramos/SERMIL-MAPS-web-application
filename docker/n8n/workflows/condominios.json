@@ -1,0 +1,193 @@
+{
+  "name": "SERMIL — Condominios",
+  "nodes": [
+    {
+      "id": "cond-wh-get",
+      "name": "GET Condominio",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 200],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "condominios/get",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "cond-wh-get-id"
+    },
+    {
+      "id": "cond-oracle-get",
+      "name": "Oracle SELECT Condominio",
+      "type": "n8n-nodes-base.oracleDatabase",
+      "typeVersion": 1,
+      "position": [460, 200],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT id, nome, cidade, estado, ramal_portaria, TO_CHAR(criado_em, 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') AS criado_em FROM condominios WHERE id = {{ $json.body.id }}",
+        "options": {}
+      },
+      "credentials": {
+        "oracleDb": {
+          "id": "ORACLE_CREDENTIAL_ID",
+          "name": "Oracle SERMIL"
+        }
+      }
+    },
+    {
+      "id": "cond-respond-get",
+      "name": "Respond GET Condominio",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [720, 200],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      }
+    },
+
+    {
+      "id": "cond-wh-update",
+      "name": "PUT Condominio",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 400],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "condominios/update",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "cond-wh-update-id"
+    },
+    {
+      "id": "cond-oracle-update",
+      "name": "Oracle UPDATE Condominio",
+      "type": "n8n-nodes-base.oracleDatabase",
+      "typeVersion": 1,
+      "position": [460, 400],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE condominios SET nome = '{{ $json.body.nome }}', cidade = '{{ $json.body.cidade }}', estado = '{{ $json.body.estado }}', ramal_portaria = '{{ $json.body.ramal_portaria }}' WHERE id = {{ $json.body.id }}",
+        "options": {}
+      },
+      "credentials": {
+        "oracleDb": {
+          "id": "ORACLE_CREDENTIAL_ID",
+          "name": "Oracle SERMIL"
+        }
+      }
+    },
+    {
+      "id": "cond-respond-update",
+      "name": "Respond PUT Condominio",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [720, 400],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": true }"
+      }
+    },
+
+    {
+      "id": "cond-wh-cfg-get",
+      "name": "GET Configuracoes",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 600],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "condominios/configuracoes/get",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "cond-wh-cfg-get-id"
+    },
+    {
+      "id": "cond-oracle-cfg-get",
+      "name": "Oracle SELECT Configuracoes",
+      "type": "n8n-nodes-base.oracleDatabase",
+      "typeVersion": 1,
+      "position": [460, 600],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT tempo_maximo_visita, mapa_interno_ativo, google_maps_ativo, waze_ativo, ramal_flutuante_ativo, expiracao_automatica_ativa FROM configuracoes WHERE cond_id = {{ $json.body.cond_id }}",
+        "options": {}
+      },
+      "credentials": {
+        "oracleDb": {
+          "id": "ORACLE_CREDENTIAL_ID",
+          "name": "Oracle SERMIL"
+        }
+      }
+    },
+    {
+      "id": "cond-respond-cfg-get",
+      "name": "Respond GET Configuracoes",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [720, 600],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      }
+    },
+
+    {
+      "id": "cond-wh-cfg-update",
+      "name": "PUT Configuracoes",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 800],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "condominios/configuracoes/update",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "cond-wh-cfg-update-id"
+    },
+    {
+      "id": "cond-oracle-cfg-update",
+      "name": "Oracle UPDATE Configuracoes",
+      "type": "n8n-nodes-base.oracleDatabase",
+      "typeVersion": 1,
+      "position": [460, 800],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE configuracoes SET tempo_maximo_visita = {{ $json.body.tempo_maximo_visita }}, mapa_interno_ativo = {{ $json.body.mapa_interno_ativo ? 1 : 0 }}, google_maps_ativo = {{ $json.body.google_maps_ativo ? 1 : 0 }}, waze_ativo = {{ $json.body.waze_ativo ? 1 : 0 }}, ramal_flutuante_ativo = {{ $json.body.ramal_flutuante_ativo ? 1 : 0 }}, expiracao_automatica_ativa = {{ $json.body.expiracao_automatica_ativa ? 1 : 0 }} WHERE cond_id = {{ $json.body.cond_id }}",
+        "options": {}
+      },
+      "credentials": {
+        "oracleDb": {
+          "id": "ORACLE_CREDENTIAL_ID",
+          "name": "Oracle SERMIL"
+        }
+      }
+    },
+    {
+      "id": "cond-respond-cfg-update",
+      "name": "Respond PUT Configuracoes",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [720, 800],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": true }"
+      }
+    }
+  ],
+  "connections": {
+    "GET Condominio":             { "main": [[{ "node": "Oracle SELECT Condominio",    "type": "main", "index": 0 }]] },
+    "Oracle SELECT Condominio":   { "main": [[{ "node": "Respond GET Condominio",      "type": "main", "index": 0 }]] },
+    "PUT Condominio":             { "main": [[{ "node": "Oracle UPDATE Condominio",    "type": "main", "index": 0 }]] },
+    "Oracle UPDATE Condominio":   { "main": [[{ "node": "Respond PUT Condominio",      "type": "main", "index": 0 }]] },
+    "GET Configuracoes":          { "main": [[{ "node": "Oracle SELECT Configuracoes", "type": "main", "index": 0 }]] },
+    "Oracle SELECT Configuracoes":{ "main": [[{ "node": "Respond GET Configuracoes",   "type": "main", "index": 0 }]] },
+    "PUT Configuracoes":          { "main": [[{ "node": "Oracle UPDATE Configuracoes", "type": "main", "index": 0 }]] },
+    "Oracle UPDATE Configuracoes":{ "main": [[{ "node": "Respond PUT Configuracoes",   "type": "main", "index": 0 }]] }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "sermil" }]
+}
