@@ -8,16 +8,14 @@ Sistema de navegação interna e controle de acesso para condomínios horizontai
 
 ```
 Browser
-  └─→ Frontend React/Nginx (:3000)
-          └─→ /api/* proxy
+  └─→ Frontend React/Vite (:3000 em dev, ou build estático)
+          └─→ HTTP /api/*
                   └─→ Backend Express (:5000)
-                              └─→ Webhooks HTTP
-                                      └─→ n8n (:5678)
-                                                └─→ Oracle XE 21c (:1521)
+                              └─→ SQLite (backend/data/sermil.db)
 ```
 
-Todos os serviços rodam em containers Docker orquestrados pelo `docker-compose.yml`.  
-O banco de dados Oracle é o único ponto de persistência. O n8n executa todas as queries SQL.
+Sem Docker, sem Oracle, sem n8n. Persistência local em arquivo SQLite criado
+automaticamente na primeira execução do backend.
 
 ---
 
@@ -40,18 +38,11 @@ O banco de dados Oracle é o único ponto de persistência. O n8n executa todas 
 ### Backend
 | Tecnologia | Função |
 |---|---|
-| Node.js 20 + Express | API REST — roteador HTTP → n8n |
+| Node.js 20 + Express | API REST |
+| better-sqlite3 | Driver SQLite síncrono |
 | jsonwebtoken | Autenticação JWT (8h de expiração) |
 | bcryptjs | Hash de senhas (salt 10) |
 | multer | Upload de CSV para importação de lotes |
-
-### Infraestrutura
-| Serviço | Imagem / Build | Porta |
-|---|---|---|
-| Oracle XE 21c | `gvenzl/oracle-xe:21-slim` | 1521 |
-| n8n | `node:20-slim` customizado | 5678 |
-| Backend | `node:20-slim` | interno |
-| Frontend | Nginx Alpine (build multi-stage) | **3000** |
 
 ---
 
@@ -79,17 +70,18 @@ Fluxo linear sem login: Identificação → Quadra → Lote → Navegação → 
 
 ## Pré-requisitos
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) instalado e em execução
-- 4 GB de RAM disponíveis (Oracle XE exige ~2 GB)
-- Portas `3000`, `5678` e `1521` livres
+- **Node.js 20+** — [download](https://nodejs.org/)
+- **pnpm** para o frontend: `npm install -g pnpm`
 
-Para desenvolvimento local do frontend fora do Docker:
-- Node.js 20+
-- pnpm (`npm install -g pnpm`)
+> `better-sqlite3` é um módulo nativo. Em geral o npm baixa um binário pré-compilado
+> automaticamente. Se em algum sistema isso falhar, instale:
+> - **Windows:** [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) (workload "Desktop development with C++")
+> - **macOS:** `xcode-select --install`
+> - **Linux:** `build-essential` + `python3`
 
 ---
 
-## Instalação e execução com Docker
+## Instalação
 
 ### 1. Clonar e configurar o ambiente
 
@@ -100,103 +92,90 @@ cd "SERMIL MAPS web application"
 cp .env.example .env
 ```
 
-Edite o `.env` com as suas senhas antes de continuar (obrigatório em produção, opcional em dev).
+Edite `.env` se quiser trocar `JWT_SECRET` ou portas (opcional em dev).
 
-### 2. Gerar o hash de senha para o seed
-
-```bash
-node -e "const b=require('bcryptjs'); console.log(b.hashSync('Sermil@2026', 10));"
-```
-
-Abra `docker/oracle/init/02_seed.sql` e substitua o valor de `senha_hash` pelo hash gerado.
-
-### 3. Subir o stack completo
+### 2. Instalar dependências
 
 ```bash
-docker compose up --build
-```
-
-> **Primeira execução:** O Oracle XE leva 2–4 minutos para inicializar.  
-> Aguarde todos os containers ficarem `healthy` antes de acessar a aplicação.
-
-```bash
-# Acompanhar o status em outro terminal
-docker compose ps
-```
-
-### 4. Configurar o n8n (uma única vez)
-
-Siga o **[GUIA_N8N_SETUP.md](GUIA_N8N_SETUP.md)** para:
-- Criar a credential **Oracle SERMIL** no painel do n8n (`http://localhost:5678`)
-- Ativar os 8 workflows
-- Verificar a integração end-to-end
-
-### 5. Acessar a aplicação
-
-| Serviço | URL |
-|---|---|
-| Aplicação | http://localhost:3000 |
-| n8n Admin | http://localhost:5678 |
-| Oracle (SQL Developer) | `localhost:1521` / service `XEPDB1` |
-
-**Login padrão (seed):**
-- Admin: `admin@sermilmaps.com`
-- Porteiro: `porteiro@sermilmaps.com`
-- Senha: a que você definiu no Passo 2
-
----
-
-## Desenvolvimento local do frontend
-
-Para iterar rapidamente no frontend sem subir todos os containers:
-
-```bash
-# Instalar dependências
+# Frontend (na raiz do projeto)
 pnpm install
 
-# Rodar em modo mock (sem backend)
-pnpm dev
-# VITE_USE_MOCK=true já está no .env padrão
+# Backend
+cd backend
+npm install
+cd ..
 ```
 
-Para conectar ao backend rodando no Docker:
+### 3. Subir backend e frontend (dois terminais)
+
+**Terminal 1 — Backend:**
+```bash
+cd backend
+npm run dev
+```
+
+Na primeira execução, o backend cria automaticamente o arquivo
+`backend/data/sermil.db`, aplica o schema (`backend/src/schema.sql`) e
+popula os dados iniciais (`backend/src/seed.sql`). Saída esperada:
+
+```
+[db] Banco novo detectado — aplicando schema e seed...
+[db] Banco inicializado em backend/data/sermil.db
+Backend SERMIL rodando na porta 5000
+```
+
+**Terminal 2 — Frontend:**
+```bash
+pnpm dev
+```
+
+Acesse http://localhost:3000.
+
+---
+
+## Login padrão (seed)
+
+| Perfil | Email | Senha |
+|---|---|---|
+| Admin | `admin@sermilmaps.com` | `Sermil@2026` |
+| Porteiro | `porteiro@sermilmaps.com` | `Sermil@2026` |
+
+Para gerar um novo hash de senha:
 
 ```bash
-# .env
-VITE_USE_MOCK=false
-VITE_API_URL=http://localhost:3000/api
-VITE_COND_ID=1
+node -e "const b=require('bcryptjs'); console.log(b.hashSync('SuaSenha', 10));"
+```
+
+E substitua o valor de `senha_hash` em [backend/src/seed.sql](backend/src/seed.sql).
+
+---
+
+## Reset do banco
+
+O banco SQLite fica em `backend/data/sermil.db`. Para zerar e repopular tudo,
+basta apagar o arquivo — o backend recria na próxima execução.
+
+```bash
+rm backend/data/sermil.db
+cd backend && npm start
 ```
 
 ---
 
-## Comandos úteis
+## Variáveis de ambiente
 
-```bash
-# Subir o stack em background
-docker compose up -d
+| Variável | Padrão | Descrição |
+|---|---|---|
+| `PORT` | `5000` | Porta do backend |
+| `JWT_SECRET` | — | Segredo para assinatura dos tokens JWT |
+| `COND_ID` | `1` | ID do condomínio padrão (login utiliza este) |
+| `FRONTEND_URL` | `http://localhost:3000` | Origem permitida no CORS e base do link de QR Codes |
+| `VITE_USE_MOCK` | `false` | Frontend usa dados mockados quando true |
+| `VITE_API_URL` | `http://localhost:5000/api` | URL base para chamadas Axios |
+| `VITE_COND_ID` | `1` | ID do condomínio usado no frontend |
 
-# Ver logs de um serviço específico
-docker compose logs -f backend
-docker compose logs -f n8n
-docker compose logs -f oracle
-
-# Parar os containers (preserva volumes/dados)
-docker compose down
-
-# Parar e APAGAR todos os dados (reset completo)
-docker compose down -v
-
-# Rebuild de um serviço específico
-docker compose up --build backend
-
-# Acessar o Oracle via sqlplus
-docker exec -it sermil_oracle sqlplus sermil/SermilApp1234@XEPDB1
-
-# Exportar workflows do n8n após alterações
-docker exec sermil_n8n n8n export:workflow --all --output=/home/node/workflows/
-docker cp sermil_n8n:/home/node/workflows/. ./docker/n8n/workflows/
-```
+> Variáveis `VITE_*` são **build-time**: alterá-las em produção exige rebuild
+> do frontend (`pnpm build`).
 
 ---
 
@@ -215,54 +194,22 @@ SERMIL MAPS web application/
 │       ├── store/                  # Estado global Zustand
 │       ├── types/                  # Interfaces TypeScript
 │       └── utils/                  # Funções auxiliares
-├── backend/                        # API Express
-│   ├── Dockerfile
+├── backend/                        # API Express + SQLite
 │   ├── package.json
+│   ├── data/                       # (gerado) sermil.db
 │   └── src/
 │       ├── server.js               # Entry point
-│       ├── n8nClient.js            # Helper: callN8n(path, body)
-│       ├── transform.js            # Converte NUMBER(1) Oracle → boolean
+│       ├── db.js                   # Conexão SQLite + auto-init + transform
+│       ├── schema.sql              # DDL SQLite + triggers
+│       ├── seed.sql                # Dados iniciais
 │       ├── middleware/
 │       │   ├── auth.js             # Verificação JWT
 │       │   └── errorHandler.js     # Tratamento centralizado de erros
-│       └── routes/                 # Uma rota por entidade do domínio
-├── docker/
-│   ├── oracle/
-│   │   └── init/
-│   │       ├── 01_schema.sql       # Schema Oracle XE 21c + triggers PL/SQL
-│   │       └── 02_seed.sql         # Dados iniciais (condomínio, usuários, quadras)
-│   ├── n8n/
-│   │   ├── Dockerfile              # node:20-slim + Oracle Instant Client
-│   │   └── workflows/              # 8 arquivos JSON importados automaticamente
-│   ├── nginx/
-│   │   └── default.conf            # SPA fallback + proxy /api/* → backend
-│   └── frontend/
-│       └── Dockerfile              # Build multi-stage Vite → Nginx
-├── docker-compose.yml              # Orquestração dos 4 containers
-├── .env.example                    # Template de variáveis de ambiente
-├── .dockerignore
-├── database_schema.md              # Documentação do schema de banco
-└── GUIA_N8N_SETUP.md               # Guia de setup manual do n8n (Fase 6)
+│       └── routes/                 # Uma rota por entidade
+├── .env.example
+├── database_schema.md              # Documentação do schema
+└── package.json                    # Dependências do frontend
 ```
-
----
-
-## Variáveis de Ambiente
-
-Todas as variáveis ficam no `.env` (gerado a partir do `.env.example`).
-
-| Variável | Padrão | Descrição |
-|---|---|---|
-| `ORACLE_SYS_PASSWORD` | `SermilOracle1234` | Senha dos usuários SYS/SYSTEM do Oracle |
-| `ORACLE_APP_USER` | `sermil` | Usuário da aplicação no Oracle |
-| `ORACLE_APP_PASSWORD` | `SermilApp1234` | Senha do usuário da aplicação |
-| `N8N_USER` | `admin` | Login do painel n8n |
-| `N8N_PASSWORD` | `n8nAdmin123` | Senha do painel n8n |
-| `N8N_WEBHOOK_SECRET` | — | Chave compartilhada backend ↔ n8n |
-| `JWT_SECRET` | — | Segredo para assinatura dos tokens JWT |
-| `COND_ID` | `1` | ID do condomínio padrão |
-
-> Variáveis do frontend (`VITE_*`) são **build-time** — alterar exige `docker compose up --build frontend`.
 
 ---
 

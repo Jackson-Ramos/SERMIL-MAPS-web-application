@@ -1,7 +1,6 @@
 const router = require('express').Router();
 const multer = require('multer');
-const { callN8n }   = require('../n8nClient');
-const { transform } = require('../transform');
+const { db, transform } = require('../db');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
@@ -19,54 +18,75 @@ function parseCSV(buffer) {
   });
 }
 
-router.get('/', async (req, res, next) => {
+router.get('/', (req, res, next) => {
   try {
     const quadra_id = Number(req.query.quadra_id);
     if (!quadra_id) return res.status(400).json({ error: 'quadra_id obrigatório' });
-    const rows = await callN8n('lotes/list', { quadra_id });
-    res.json(transform(rows || []));
+    const rows = db.prepare('SELECT * FROM lotes WHERE quadra_id = ? ORDER BY numero').all(quadra_id);
+    res.json(transform(rows));
   } catch (err) { next(err); }
 });
 
-router.post('/import', upload.single('file'), async (req, res, next) => {
+router.post('/import', upload.single('file'), (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Arquivo CSV não enviado' });
 
     const rows = parseCSV(req.file.buffer);
     if (!rows.length) return res.status(400).json({ error: 'CSV vazio ou inválido' });
 
-    // Insere linha a linha via endpoint create para reutilizar o workflow existente
-    const results = await Promise.allSettled(
-      rows.map(row => callN8n('lotes/create', {
-        quadra_id: Number(row.quadra_id),
-        numero:    row.numero,
-        latitude:  row.latitude  ? Number(row.latitude)  : null,
-        longitude: row.longitude ? Number(row.longitude) : null,
-      }))
+    const stmt = db.prepare(
+      'INSERT INTO lotes (quadra_id, numero, latitude, longitude) VALUES (?, ?, ?, ?)'
     );
 
-    const importados = results.filter(r => r.status === 'fulfilled').length;
-    const erros      = results.filter(r => r.status === 'rejected').length;
+    let importados = 0;
+    let erros      = 0;
 
+    const insertMany = db.transaction((items) => {
+      for (const r of items) {
+        try {
+          stmt.run(
+            Number(r.quadra_id),
+            r.numero,
+            r.latitude  ? Number(r.latitude)  : null,
+            r.longitude ? Number(r.longitude) : null,
+          );
+          importados++;
+        } catch {
+          erros++;
+        }
+      }
+    });
+
+    insertMany(rows);
     res.json({ success: true, importados, erros });
   } catch (err) { next(err); }
 });
 
-router.post('/', async (req, res, next) => {
+router.post('/', (req, res, next) => {
   try {
-    const rows = await callN8n('lotes/create', {
-      quadra_id: Number(req.body.quadra_id),
-      numero:    req.body.numero,
-      latitude:  req.body.latitude  ?? null,
-      longitude: req.body.longitude ?? null,
-    });
-    res.status(201).json(transform(rows?.[0] || {}));
+    const info = db.prepare(
+      'INSERT INTO lotes (quadra_id, numero, latitude, longitude) VALUES (?, ?, ?, ?)'
+    ).run(
+      Number(req.body.quadra_id),
+      req.body.numero,
+      req.body.latitude  ?? null,
+      req.body.longitude ?? null,
+    );
+    const row = db.prepare('SELECT * FROM lotes WHERE id = ?').get(info.lastInsertRowid);
+    res.status(201).json(transform(row));
   } catch (err) { next(err); }
 });
 
-router.put('/:id', async (req, res, next) => {
+router.put('/:id', (req, res, next) => {
   try {
-    await callN8n('lotes/update', { id: Number(req.params.id), ...req.body });
+    const b = req.body;
+    db.prepare(`
+      UPDATE lotes
+         SET numero    = COALESCE(?, numero),
+             latitude  = COALESCE(?, latitude),
+             longitude = COALESCE(?, longitude)
+       WHERE id = ?
+    `).run(b.numero ?? null, b.latitude ?? null, b.longitude ?? null, Number(req.params.id));
     res.json({ success: true });
   } catch (err) { next(err); }
 });

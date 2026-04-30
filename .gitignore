@@ -49,3 +49,6 @@ coverage/
 
 # Misc
 *.local
+
+# Banco de dados SQLite (gerado em runtime pelo backend)
+backend/data/

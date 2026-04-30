@@ -1,37 +1,61 @@
 const router = require('express').Router();
-const { callN8n }   = require('../n8nClient');
-const { transform } = require('../transform');
+const { db, transform } = require('../db');
 
-router.get('/', async (req, res, next) => {
+// Lista todos os moradores cujos lotes pertencem a quadras do condomínio.
+router.get('/', (req, res, next) => {
   try {
     const cond_id = Number(req.query.cond_id || req.user.cond_id);
-    const rows = await callN8n('moradores/list', { cond_id });
-    res.json(transform(rows || []));
+    const rows = db.prepare(`
+      SELECT m.*
+        FROM moradores m
+        JOIN lotes   l ON l.id = m.lote_id
+        JOIN quadras q ON q.id = l.quadra_id
+       WHERE q.cond_id = ?
+       ORDER BY m.nome
+    `).all(cond_id);
+    res.json(transform(rows));
   } catch (err) { next(err); }
 });
 
-router.post('/', async (req, res, next) => {
+router.post('/', (req, res, next) => {
   try {
-    const rows = await callN8n('moradores/create', {
-      lote_id: Number(req.body.lote_id),
-      nome:    req.body.nome,
-      cpf:     req.body.cpf     || null,
-      ramal:   req.body.ramal   || null,
-    });
-    res.status(201).json(transform(rows?.[0] || {}));
+    const info = db.prepare(
+      'INSERT INTO moradores (lote_id, nome, cpf, ramal) VALUES (?, ?, ?, ?)'
+    ).run(
+      Number(req.body.lote_id),
+      req.body.nome,
+      req.body.cpf   || null,
+      req.body.ramal || null,
+    );
+    const row = db.prepare('SELECT * FROM moradores WHERE id = ?').get(info.lastInsertRowid);
+    res.status(201).json(transform(row));
   } catch (err) { next(err); }
 });
 
-router.put('/:id', async (req, res, next) => {
+router.put('/:id', (req, res, next) => {
   try {
-    await callN8n('moradores/update', { id: Number(req.params.id), ...req.body });
+    const b = req.body;
+    db.prepare(`
+      UPDATE moradores
+         SET nome    = COALESCE(?, nome),
+             cpf     = COALESCE(?, cpf),
+             ramal   = COALESCE(?, ramal),
+             lote_id = COALESCE(?, lote_id)
+       WHERE id = ?
+    `).run(
+      b.nome    ?? null,
+      b.cpf     ?? null,
+      b.ramal   ?? null,
+      b.lote_id ?? null,
+      Number(req.params.id),
+    );
     res.json({ success: true });
   } catch (err) { next(err); }
 });
 
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', (req, res, next) => {
   try {
-    await callN8n('moradores/delete', { id: Number(req.params.id) });
+    db.prepare('DELETE FROM moradores WHERE id = ?').run(Number(req.params.id));
     res.json({ success: true });
   } catch (err) { next(err); }
 });

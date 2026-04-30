@@ -1,15 +1,24 @@
-// Mock Auth Service
+import api from './api';
 
-export const login = async (usuario: string, senha: string):Promise<{ token: string, role: 'admin' | 'porteiro' }> => {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      if (usuario === 'admin' && senha === 'admin') {
-        resolve({ token: 'mock_jwt_admin_token', role: 'admin' });
-      } else if (usuario === 'porteiro' && senha === 'porteiro') {
-        resolve({ token: 'mock_jwt_porteiro_token', role: 'porteiro' });
-      } else {
-        reject(new Error('Credenciais inválidas'));
-      }
-    }, 500);
-  });
-};
+export interface Usuario {
+  id: number;
+  cond_id: number;
+  nome: string;
+  email: string;
+  role: 'admin' | 'porteiro' | 'morador';
+}
+
+export interface LoginResponse {
+  token: string;
+  usuario: Usuario;
+}
+
+export async function login(email: string, senha: string): Promise<LoginResponse> {
+  const response = await api.post('/auth/login', { email, senha });
+  return response.data;
+}
+
+export async function getMe(): Promise<Usuario> {
+  const response = await api.get('/auth/me');
+  return response.data;
+}

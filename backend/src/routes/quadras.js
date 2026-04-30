@@ -1,30 +1,27 @@
 const router = require('express').Router();
-const { callN8n }   = require('../n8nClient');
-const { transform } = require('../transform');
+const { db, transform } = require('../db');
 
-router.get('/', async (req, res, next) => {
+router.get('/', (req, res, next) => {
   try {
     const cond_id = Number(req.query.cond_id || req.user.cond_id);
-    const rows = await callN8n('quadras/list', { cond_id });
-    res.json(transform(rows || []));
+    const rows = db.prepare('SELECT * FROM quadras WHERE cond_id = ? ORDER BY nome').all(cond_id);
+    res.json(transform(rows));
   } catch (err) { next(err); }
 });
 
-router.post('/', async (req, res, next) => {
+router.post('/', (req, res, next) => {
   try {
-    const cond_id = req.body.cond_id || req.user.cond_id;
-    const rows = await callN8n('quadras/create', { ...req.body, cond_id: Number(cond_id) });
-    res.status(201).json(transform(rows?.[0] || {}));
+    const cond_id = Number(req.body.cond_id || req.user.cond_id);
+    const info = db.prepare('INSERT INTO quadras (cond_id, nome) VALUES (?, ?)').run(cond_id, req.body.nome);
+    const row  = db.prepare('SELECT * FROM quadras WHERE id = ?').get(info.lastInsertRowid);
+    res.status(201).json(transform(row));
   } catch (err) { next(err); }
 });
 
-router.put('/:id', async (req, res, next) => {
+router.put('/:id', (req, res, next) => {
   try {
-    await callN8n('quadras/update', {
-      id:      Number(req.params.id),
-      cond_id: Number(req.user.cond_id),
-      ...req.body,
-    });
+    db.prepare('UPDATE quadras SET nome = COALESCE(?, nome) WHERE id = ? AND cond_id = ?')
+      .run(req.body.nome ?? null, Number(req.params.id), Number(req.user.cond_id));
     res.json({ success: true });
   } catch (err) { next(err); }
 });

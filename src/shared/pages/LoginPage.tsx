@@ -3,11 +3,11 @@ import { useNavigate } from 'react-router';
 import { useAuthStore } from '../store/authStore';
 import { login } from '../services/authService';
 import { toast } from 'sonner';
-import { Eye, EyeOff, MapPin, Shield, Lock, User, ChevronRight } from 'lucide-react';
+import { Eye, EyeOff, MapPin, Shield, Lock, Mail, ChevronRight } from 'lucide-react';
 import { motion } from 'motion/react';
 
 export default function LoginPage() {
-  const [usuario, setUsuario] = useState('');
+  const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -19,14 +19,16 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const data = await login(usuario, senha);
-      setAuth(data.token, data.role);
+      const data = await login(email, senha);
+      setAuth(data.token, data.usuario);
       toast.success('Login efetuado com sucesso!');
 
-      if (data.role === 'admin') {
+      if (data.usuario.role === 'admin') {
         navigate('/admin');
-      } else {
+      } else if (data.usuario.role === 'porteiro') {
         navigate('/porteiro');
+      } else {
+        navigate('/');
       }
     } catch (error: any) {
       toast.error(error.message || 'Erro ao fazer login');
@@ -129,21 +131,22 @@ export default function LoginPage() {
 
           {/* Form */}
           <form onSubmit={handleLogin} className="space-y-5">
-            {/* Username */}
+            {/* Email */}
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Usuário
+                Email
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User className="w-4 h-4 text-gray-400" />
+                  <Mail className="w-4 h-4 text-gray-400" />
                 </div>
                 <input
-                  type="text"
-                  value={usuario}
-                  onChange={(e) => setUsuario(e.target.value)}
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   required
-                  placeholder="Digite seu usuário"
+                  placeholder="seu.email@sermilmaps.com"
+                  autoComplete="email"
                   className="w-full pl-10 pr-4 py-3 text-sm rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0B4F3A] dark:focus:ring-[#28b88d] focus:border-transparent transition-all duration-200"
                 />
               </div>
@@ -200,17 +203,20 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Mock hint */}
+          {/* Credenciais padrão (seed) */}
           <div className="mt-8 p-4 rounded-xl bg-gray-50 dark:bg-gray-900 border border-dashed border-gray-200 dark:border-gray-700">
             <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2">
-              Credenciais de demonstração
+              Credenciais padrão (seed)
             </p>
-            <div className="grid grid-cols-2 gap-2 text-xs text-gray-500 dark:text-gray-400">
+            <div className="flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-400">
               <div>
-                <span className="font-medium">Admin:</span> admin / admin
+                <span className="font-medium">Admin:</span> admin@sermilmaps.com
               </div>
               <div>
-                <span className="font-medium">Porteiro:</span> porteiro / porteiro
+                <span className="font-medium">Porteiro:</span> porteiro@sermilmaps.com
+              </div>
+              <div>
+                <span className="font-medium">Senha:</span> Sermil@2026
               </div>
             </div>
           </div>

@@ -1,8 +1,7 @@
 const router  = require('express').Router();
 const bcrypt  = require('bcryptjs');
 const jwt     = require('jsonwebtoken');
-const { callN8n }  = require('../n8nClient');
-const { transform } = require('../transform');
+const { db, transform } = require('../db');
 
 router.post('/login', async (req, res, next) => {
   try {
@@ -12,13 +11,13 @@ router.post('/login', async (req, res, next) => {
     }
 
     const cond_id = Number(process.env.COND_ID || 1);
-    const rows = await callN8n('usuarios/auth', { email, cond_id });
+    const row = db.prepare(
+      'SELECT * FROM usuarios WHERE email = ? AND cond_id = ?'
+    ).get(email, cond_id);
 
-    if (!Array.isArray(rows) || rows.length === 0) {
-      return res.status(401).json({ error: 'Credenciais inválidas' });
-    }
+    if (!row) return res.status(401).json({ error: 'Credenciais inválidas' });
 
-    const user = transform(rows[0]);
+    const user = transform(row);
 
     if (!user.ativo) {
       return res.status(403).json({ error: 'Conta desativada' });

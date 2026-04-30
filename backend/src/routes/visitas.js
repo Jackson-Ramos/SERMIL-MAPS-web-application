@@ -1,55 +1,83 @@
 const router = require('express').Router();
-const { callN8n }   = require('../n8nClient');
-const { transform } = require('../transform');
+const { db, transform } = require('../db');
 
-router.post('/iniciar', async (req, res, next) => {
+router.post('/iniciar', (req, res, next) => {
   try {
-    const rows = await callN8n('visitas/iniciar', {
-      cond_id:       Number(req.user.cond_id),
-      lote_id:       Number(req.body.lote_id),
-      cpf:           req.body.cpf,
-      nome_visitante: req.body.nome_visitante || null,
-      quadra:        req.body.quadra,
-      lote:          req.body.lote,
-      app_navegacao: req.body.app_navegacao || 'interno',
-      rota:          req.body.rota          || null,
-      porteiro_id:   req.user.role === 'porteiro' ? req.user.id : null,
-    });
-    res.status(201).json(transform(rows?.[0] || {}));
+    const info = db.prepare(`
+      INSERT INTO visitas (
+        cond_id, lote_id, cpf, nome_visitante,
+        quadra, lote, app_navegacao, rota, porteiro_id
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      Number(req.user.cond_id),
+      Number(req.body.lote_id),
+      req.body.cpf,
+      req.body.nome_visitante || null,
+      req.body.quadra,
+      req.body.lote,
+      req.body.app_navegacao || 'interno',
+      req.body.rota || null,
+      req.user.role === 'porteiro' ? req.user.id : null,
+    );
+    const row = db.prepare('SELECT * FROM visitas WHERE id = ?').get(info.lastInsertRowid);
+    res.status(201).json(transform(row));
   } catch (err) { next(err); }
 });
 
-router.patch('/encerrar', async (req, res, next) => {
+router.patch('/encerrar', (req, res, next) => {
   try {
-    await callN8n('visitas/encerrar', {
-      id:          Number(req.body.id),
-      cond_id:     Number(req.user.cond_id),
-      observacoes: req.body.observacoes || null,
-    });
+    db.prepare(`
+      UPDATE visitas
+         SET horario_saida = datetime('now'),
+             status        = 'encerrada',
+             observacoes   = COALESCE(?, observacoes)
+       WHERE id = ? AND cond_id = ?
+    `).run(
+      req.body.observacoes || null,
+      Number(req.body.id),
+      Number(req.user.cond_id),
+    );
     res.json({ success: true });
   } catch (err) { next(err); }
 });
 
-router.get('/ativas', async (req, res, next) => {
+router.get('/ativas', (req, res, next) => {
   try {
     const cond_id = Number(req.query.cond_id || req.user.cond_id);
-    const rows = await callN8n('visitas/ativas', { cond_id });
-    res.json(transform(rows || []));
+    const rows = db.prepare(`
+      SELECT * FROM visitas
+       WHERE cond_id = ? AND status = 'ativa'
+       ORDER BY horario_entrada DESC
+    `).all(cond_id);
+    res.json(transform(rows));
   } catch (err) { next(err); }
 });
 
-router.get('/historico', async (req, res, next) => {
+router.get('/historico', (req, res, next) => {
   try {
-    const rows = await callN8n('visitas/historico', {
-      cond_id:     Number(req.query.cond_id || req.user.cond_id),
-      cpf:         req.query.cpf        || null,
-      quadra:      req.query.quadra     || null,
-      status:      req.query.status     || null,
-      data_inicio: req.query.data_inicio || null,
-      data_fim:    req.query.data_fim    || null,
-      limit:       Number(req.query.limit || 50),
-    });
-    res.json(transform(rows || []));
+    const filtros = [];
+    const params  = [];
+
+    filtros.push('cond_id = ?');
+    params.push(Number(req.query.cond_id || req.user.cond_id));
+
+    if (req.query.cpf)         { filtros.push('cpf = ?');           params.push(req.query.cpf); }
+    if (req.query.quadra)      { filtros.push('quadra = ?');        params.push(req.query.quadra); }
+    if (req.query.status)      { filtros.push('status = ?');        params.push(req.query.status); }
+    if (req.query.data_inicio) { filtros.push('horario_entrada >= ?'); params.push(req.query.data_inicio); }
+    if (req.query.data_fim)    { filtros.push('horario_entrada <= ?'); params.push(req.query.data_fim); }
+
+    const limit = Number(req.query.limit || 50);
+
+    const rows = db.prepare(`
+      SELECT * FROM visitas
+       WHERE ${filtros.join(' AND ')}
+       ORDER BY horario_entrada DESC
+       LIMIT ?
+    `).all(...params, limit);
+
+    res.json(transform(rows));
   } catch (err) { next(err); }
 });
 

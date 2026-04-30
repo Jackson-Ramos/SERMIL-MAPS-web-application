@@ -1,19 +1,20 @@
 const router = require('express').Router();
 const crypto = require('crypto');
-const { callN8n }   = require('../n8nClient');
-const { transform } = require('../transform');
+const { db, transform } = require('../db');
 
 const BASE_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 
-router.get('/', async (req, res, next) => {
+router.get('/', (req, res, next) => {
   try {
     const cond_id = Number(req.query.cond_id || req.user.cond_id);
-    const rows = await callN8n('qrcodes/list', { cond_id });
-    res.json(transform(rows || []));
+    const rows = db.prepare(
+      'SELECT * FROM qr_codes WHERE cond_id = ? ORDER BY criado_em DESC'
+    ).all(cond_id);
+    res.json(transform(rows));
   } catch (err) { next(err); }
 });
 
-router.post('/', async (req, res, next) => {
+router.post('/', (req, res, next) => {
   try {
     const token = crypto.randomUUID().replace(/-/g, '');
     const url   = `${BASE_URL}/v/entrada?token=${token}`;
@@ -24,35 +25,45 @@ router.post('/', async (req, res, next) => {
       expira_em = new Date(Date.now() + ms).toISOString();
     }
 
-    const rows = await callN8n('qrcodes/create', {
-      cond_id:    Number(req.user.cond_id),
-      criado_por: Number(req.user.id),
-      nome_portao: req.body.nome_portao,
+    const info = db.prepare(`
+      INSERT INTO qr_codes (cond_id, criado_por, nome_portao, token, url, uso_unico, expira_em)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      Number(req.user.cond_id),
+      Number(req.user.id),
+      req.body.nome_portao,
       token,
       url,
-      uso_unico: req.body.uso_unico ? 1 : 0,
+      req.body.uso_unico ? 1 : 0,
       expira_em,
-    });
+    );
 
-    res.status(201).json(transform(rows?.[0] || {}));
+    const row = db.prepare('SELECT * FROM qr_codes WHERE id = ?').get(info.lastInsertRowid);
+    res.status(201).json(transform(row));
   } catch (err) { next(err); }
 });
 
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', (req, res, next) => {
   try {
-    await callN8n('qrcodes/revoke', {
-      id:      Number(req.params.id),
-      cond_id: Number(req.user.cond_id),
-    });
+    db.prepare('UPDATE qr_codes SET ativo = 0 WHERE id = ? AND cond_id = ?')
+      .run(Number(req.params.id), Number(req.user.cond_id));
     res.json({ success: true });
   } catch (err) { next(err); }
 });
 
-router.post('/validate', async (req, res, next) => {
+router.post('/validate', (req, res, next) => {
   try {
-    const rows = await callN8n('qrcodes/validate', { token: req.body.token });
-    if (!rows?.length) return res.status(404).json({ error: 'Token inválido ou expirado' });
-    res.json(transform(rows[0]));
+    const row = db.prepare(`
+      SELECT * FROM qr_codes
+       WHERE token = ? AND ativo = 1
+         AND (expira_em IS NULL OR expira_em > datetime('now'))
+    `).get(req.body.token);
+
+    if (!row) return res.status(404).json({ error: 'Token inválido ou expirado' });
+
+    db.prepare('UPDATE qr_codes SET usos = usos + 1 WHERE id = ?').run(row.id);
+
+    res.json(transform(row));
   } catch (err) { next(err); }
 });
 

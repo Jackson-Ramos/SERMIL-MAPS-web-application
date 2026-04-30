@@ -1,22 +1,38 @@
-const express      = require('express');
-const helmet       = require('helmet');
-const cors         = require('cors');
+require('dotenv').config({ path: require('path').join(__dirname, '..', '..', '.env') });
+
+const express        = require('express');
+const helmet         = require('helmet');
+const cors           = require('cors');
 const authMiddleware = require('./middleware/auth');
 const errorHandler   = require('./middleware/errorHandler');
+
+require('./db'); // inicializa o SQLite (cria/popula na primeira execução)
 
 const app = express();
 
 app.use(helmet());
-app.use(cors({ origin: process.env.FRONTEND_URL || '*' }));
+
+// CORS: aceita uma lista separada por vírgula em FRONTEND_URL.
+// Em dev, o padrão cobre as portas que o Vite costuma usar.
+const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173,http://localhost:3000')
+  .split(',')
+  .map(o => o.trim());
+
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+      return cb(null, true);
+    }
+    cb(new Error(`Origem ${origin} não permitida pelo CORS`));
+  },
+}));
+
 app.use(express.json());
 
-// Health check — usado pelo depends_on do docker-compose
 app.get('/healthz', (_req, res) => res.json({ status: 'ok' }));
 
-// Rotas públicas
 app.use('/api/auth', require('./routes/auth'));
 
-// Rotas protegidas por JWT
 app.use('/api/condominios', authMiddleware, require('./routes/condominios'));
 app.use('/api/quadras',     authMiddleware, require('./routes/quadras'));
 app.use('/api/lotes',       authMiddleware, require('./routes/lotes'));
