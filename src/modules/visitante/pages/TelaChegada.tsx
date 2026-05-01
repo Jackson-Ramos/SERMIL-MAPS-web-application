@@ -1,110 +1,173 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { encerrarVisita } from '../../../shared/services/visitaService';
-import Button from '../../../shared/components/Button';
 import { calcularPermanencia, formatarHora } from '../../../shared/utils/tempo';
-import { CheckCircle } from 'lucide-react';
+import { CheckCircle2, MapPin, Clock, Timer, Map } from 'lucide-react';
 import { useVisitanteStore } from '../../../shared/store/visitanteStore';
+import VisitanteLayout from '../VisitanteLayout';
+import Button from '../../../shared/components/Button';
+import { motion, AnimatePresence } from 'motion/react';
 
 export default function TelaChegada() {
   const navigate = useNavigate();
   const [encerrando, setEncerrando] = useState(false);
+  const [encerrado, setEncerrado] = useState(false);
   const { quadraNome, loteNumero, horarioEntrada, visitaId, clear } = useVisitanteStore();
 
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        console.log('Usuário retornou ao app');
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
+    document.addEventListener('visibilitychange', () => {});
+    return () => document.removeEventListener('visibilitychange', () => {});
   }, []);
 
   const handleEncerrar = async () => {
-    if (!visitaId) {
-      alert('Erro: ID da visita não encontrado');
-      return;
-    }
-
+    if (!visitaId) return;
     setEncerrando(true);
     try {
       await encerrarVisita(visitaId);
-
-      clear();
-
+      setEncerrado(true);
       setTimeout(() => {
+        clear();
         navigate('/', { replace: true });
-      }, 2000);
-    } catch (error: any) {
-      console.error('Erro ao encerrar visita:', error);
+      }, 2500);
+    } catch {
       alert('Erro ao encerrar visita. Tente novamente.');
       setEncerrando(false);
     }
   };
 
-  const handleContinuar = () => {
-    navigate('/visitante/mapa');
-  };
-
   return (
-    <div className="min-h-screen bg-gray-50 p-6 flex flex-col justify-center">
-      <div className="max-w-md mx-auto w-full">
-        <div className="text-center mb-8">
-          <CheckCircle size={64} className="text-green-600 mx-auto mb-4" />
-          <h1 className="text-2xl mb-2">Você chegou ao destino?</h1>
-        </div>
-
-        <div className="bg-white rounded-lg p-6 shadow-md mb-6">
-          <p className="text-center mb-4">
-            <strong>Destino:</strong> Quadra {quadraNome} - Lote {loteNumero}
-          </p>
-          <div className="border-t pt-4 space-y-2">
-            <p className="text-sm text-gray-600">
-              <strong>Horário de Entrada:</strong>{' '}
-              {formatarHora(horarioEntrada || '')}
-            </p>
-            <p className="text-sm text-gray-600">
-              <strong>Tempo Decorrido:</strong>{' '}
-              {calcularPermanencia(horarioEntrada || '')}
-            </p>
+    <VisitanteLayout titulo="Confirmação de chegada">
+      <div className="p-4 max-w-sm mx-auto space-y-5 py-6">
+        {/* Success icon */}
+        <motion.div
+          className="flex justify-center"
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.1 }}
+        >
+          <div className="w-20 h-20 rounded-full bg-green-100 dark:bg-green-900/20 flex items-center justify-center">
+            <CheckCircle2 size={44} className="text-green-600 dark:text-green-400" />
           </div>
-        </div>
+        </motion.div>
 
-        <div className="space-y-3">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="text-center"
+        >
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Chegou ao destino?</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            Confirme a chegada para encerrar sua visita.
+          </p>
+        </motion.div>
+
+        {/* Summary card */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden"
+        >
+          <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-800/40 flex items-center gap-2">
+            <MapPin size={13} className="text-[#0B4F3A] dark:text-[#28b88d]" />
+            <span className="text-[11px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
+              Resumo da visita
+            </span>
+          </div>
+          <div className="p-4 space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-[#0B4F3A]/8 dark:bg-[#28b88d]/10 flex items-center justify-center shrink-0">
+                <MapPin size={14} className="text-[#0B4F3A] dark:text-[#28b88d]" />
+              </div>
+              <div>
+                <p className="text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider">Destino</p>
+                <p className="text-sm font-bold text-gray-900 dark:text-white">
+                  Quadra {quadraNome} · Lote {loteNumero}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-[#0B4F3A]/8 dark:bg-[#28b88d]/10 flex items-center justify-center shrink-0">
+                <Clock size={14} className="text-[#0B4F3A] dark:text-[#28b88d]" />
+              </div>
+              <div>
+                <p className="text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider">Entrada</p>
+                <p className="text-sm font-bold text-gray-900 dark:text-white font-mono">
+                  {formatarHora(horarioEntrada || null)}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-[#0B4F3A]/8 dark:bg-[#28b88d]/10 flex items-center justify-center shrink-0">
+                <Timer size={14} className="text-[#0B4F3A] dark:text-[#28b88d]" />
+              </div>
+              <div>
+                <p className="text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider">Permanência</p>
+                <p className="text-sm font-bold text-gray-900 dark:text-white">
+                  {calcularPermanencia(horarioEntrada || null)}
+                </p>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Actions */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="space-y-3"
+        >
           <Button
             onClick={handleEncerrar}
-            disabled={encerrando}
-            className="w-full text-lg py-6"
+            disabled={encerrando || encerrado}
+            loading={encerrando}
+            size="lg"
+            className="w-full"
           >
-            {encerrando ? 'Encerrando...' : 'Cheguei - Encerrar Visita'}
+            <CheckCircle2 size={16} />
+            {encerrando ? 'Encerrando...' : 'Cheguei — Encerrar visita'}
           </Button>
 
           <Button
-            onClick={handleContinuar}
+            onClick={() => navigate('/visitante/mapa')}
             variant="secondary"
-            className="w-full text-lg py-6"
+            size="lg"
+            className="w-full"
+            leftIcon={<Map size={16} />}
           >
             Ainda estou navegando
           </Button>
-        </div>
-
-        {encerrando && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-8 text-center">
-              <CheckCircle size={64} className="text-green-600 mx-auto mb-4" />
-              <p className="text-xl">Visita encerrada com sucesso!</p>
-              <p className="text-sm text-gray-600 mt-2">
-                Obrigado por utilizar o SERMIL MAPS
-              </p>
-            </div>
-          </div>
-        )}
+        </motion.div>
       </div>
-    </div>
+
+      {/* Full-screen success overlay */}
+      <AnimatePresence>
+        {encerrado && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-[#0B4F3A]/95 backdrop-blur-sm flex flex-col items-center justify-center gap-5 px-8 text-center"
+          >
+            <motion.div
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+              className="w-20 h-20 rounded-full bg-white/15 flex items-center justify-center"
+            >
+              <CheckCircle2 size={44} className="text-white" />
+            </motion.div>
+            <div>
+              <p className="text-xl font-bold text-white">Visita encerrada!</p>
+              <p className="text-white/70 text-sm mt-1">Obrigado por utilizar o SERMIL MAPS.</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </VisitanteLayout>
   );
 }
