@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { encerrarVisita } from '../../../shared/services/visitaService';
+import { encerrarVisitaPublico } from '../../../shared/services/publicService';
 import { calcularPermanencia, formatarHora } from '../../../shared/utils/tempo';
 import { CheckCircle2, MapPin, Clock, Timer, Map } from 'lucide-react';
 import { useVisitanteStore } from '../../../shared/store/visitanteStore';
@@ -23,7 +23,7 @@ export default function TelaChegada() {
     if (!visitaId) return;
     setEncerrando(true);
     try {
-      await encerrarVisita(visitaId);
+      await encerrarVisitaPublico(visitaId);
       setEncerrado(true);
       setTimeout(() => {
         clear();

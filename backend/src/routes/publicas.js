@@ -58,6 +58,35 @@ router.get('/lotes', (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// Encerramento da visita pelo próprio visitante (botão "Cheguei").
+// Idempotente — aceitar repetição sem erro pra UX no celular.
+router.post('/visita/encerrar', (req, res, next) => {
+  try {
+    const visitaId = Number(req.body.visita_id);
+    if (!visitaId) {
+      return res.status(400).json({ error: 'visita_id é obrigatório' });
+    }
+
+    const visita = db.prepare('SELECT * FROM visitas WHERE id = ?').get(visitaId);
+    if (!visita) return res.status(404).json({ error: 'Visita não encontrada' });
+
+    if (visita.status === 'encerrada') {
+      return res.json(transform(visita));
+    }
+
+    db.prepare(`
+      UPDATE visitas
+         SET horario_saida = datetime('now'),
+             status        = 'encerrada',
+             observacoes   = COALESCE(?, observacoes)
+       WHERE id = ?
+    `).run(req.body.observacoes ?? null, visitaId);
+
+    const row = db.prepare('SELECT * FROM visitas WHERE id = ?').get(visitaId);
+    res.json(transform(row));
+  } catch (err) { next(err); }
+});
+
 // Confirmação da visita pelo visitante ao escanear o QR Code do porteiro.
 router.post('/visita/confirmar', (req, res, next) => {
   try {

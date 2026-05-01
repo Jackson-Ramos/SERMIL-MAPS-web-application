@@ -54,3 +54,14 @@ export async function confirmarVisitaPublico(
   });
   return data;
 }
+
+export async function encerrarVisitaPublico(
+  visitaId: number,
+  observacoes?: string,
+): Promise<Visita> {
+  const { data } = await publicApi.post(`/visita/encerrar`, {
+    visita_id: visitaId,
+    observacoes,
+  });
+  return data;
+}
