@@ -1,10 +1,11 @@
 import axios from 'axios';
 import { Condominio, Configuracoes, Quadra, Lote, Visita } from '../types';
+import { resolveApiBaseUrl } from './api';
 
 // Cliente axios separado para o fluxo do visitante: sem token e sem o
 // interceptor de 401 que redireciona para /login.
 const publicApi = axios.create({
-  baseURL: (import.meta.env.VITE_API_URL || 'http://localhost:5000/api') + '/publica',
+  baseURL: resolveApiBaseUrl('/publica'),
   timeout: 10000,
   headers: { 'Content-Type': 'application/json' },
 });

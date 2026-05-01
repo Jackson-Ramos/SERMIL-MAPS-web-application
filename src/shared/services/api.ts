@@ -2,8 +2,35 @@ import axios from 'axios';
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
 
+// Resolve a URL base da API. Se VITE_API_URL apontar para localhost mas a
+// página estiver sendo acessada por outro host (ex.: celular acessando o IP
+// local da máquina dev), substitui o hostname pelo da página. Isso permite
+// que dispositivos na mesma rede consumam o backend sem reconfigurar a env.
+export function resolveApiBaseUrl(suffix: string = ''): string {
+  const envUrl = import.meta.env.VITE_API_URL as string | undefined;
+  const fallback = 'http://localhost:5000/api';
+  const baseRaw = envUrl || fallback;
+
+  if (typeof window === 'undefined') return baseRaw + suffix;
+
+  const pageHost = window.location.hostname;
+  const isPageOnLocalhost = pageHost === 'localhost' || pageHost === '127.0.0.1';
+  const baseUrlObj = (() => {
+    try { return new URL(baseRaw); } catch { return null; }
+  })();
+  const isApiOnLocalhost =
+    baseUrlObj && (baseUrlObj.hostname === 'localhost' || baseUrlObj.hostname === '127.0.0.1');
+
+  if (baseUrlObj && isApiOnLocalhost && !isPageOnLocalhost) {
+    baseUrlObj.hostname = pageHost;
+    return baseUrlObj.toString().replace(/\/$/, '') + suffix;
+  }
+
+  return baseRaw.replace(/\/$/, '') + suffix;
+}
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  baseURL: resolveApiBaseUrl(),
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
