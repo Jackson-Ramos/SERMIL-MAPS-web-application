@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { iniciarVisita } from '../../../shared/services/visitaService';
 import useConfigStore from '../../../shared/store/configStore';
 import { abrirGoogleMaps, abrirWaze } from '../../../shared/utils/navegacao';
-import { MapPin, Map, Navigation2, AlertCircle, ChevronRight } from 'lucide-react';
+import { MapPin, Map, Navigation2, AlertCircle, ChevronRight, Phone, User } from 'lucide-react';
 import { useVisitanteStore } from '../../../shared/store/visitanteStore';
 import VisitanteLayout from '../VisitanteLayout';
 import { motion } from 'motion/react';
@@ -23,7 +23,7 @@ export default function TelaNavegacao() {
   const { config, fetchConfig } = useConfigStore();
   const [registrando, setRegistrando] = useState(false);
   const [erro, setErro] = useState('');
-  const { condId, quadraNome, loteNumero, loteId, cpf, loteLat, loteLon, visitaId, setVisita } =
+  const { condId, quadraNome, loteNumero, loteId, cpf, loteLat, loteLon, loteMorador, loteRamal, visitaId, setVisita } =
     useVisitanteStore();
 
   useEffect(() => {
@@ -111,6 +111,42 @@ export default function TelaNavegacao() {
             </p>
           </div>
         </motion.div>
+
+        {/* Card de contato com o morador (se houver ramal cadastrado) */}
+        {loteRamal && (
+          <motion.a
+            href={`tel:${loteRamal}`}
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="block bg-white dark:bg-gray-900 rounded-2xl border border-[#0B4F3A]/15 dark:border-[#28b88d]/20 shadow-sm p-4 hover:border-[#0B4F3A]/40 dark:hover:border-[#28b88d]/40 hover:shadow-md active:scale-[0.98] transition-all duration-150"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-xl bg-[#0B4F3A] dark:bg-[#28b88d] flex items-center justify-center shrink-0 shadow-sm">
+                <Phone size={18} className="text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">
+                  Ligar para o morador
+                </p>
+                {loteMorador ? (
+                  <p className="text-sm font-bold text-gray-900 dark:text-white truncate flex items-center gap-1.5 mt-0.5">
+                    <User size={12} className="text-[#0B4F3A] dark:text-[#28b88d] shrink-0" />
+                    {loteMorador}
+                  </p>
+                ) : (
+                  <p className="text-sm font-bold text-gray-900 dark:text-white mt-0.5">
+                    Ramal do destino
+                  </p>
+                )}
+                <p className="text-[12px] font-mono font-bold text-[#0B4F3A] dark:text-[#28b88d] mt-0.5">
+                  {loteRamal}
+                </p>
+              </div>
+              <ChevronRight size={16} className="text-gray-300 dark:text-gray-600 shrink-0" />
+            </div>
+          </motion.a>
+        )}
 
         {/* Nav options */}
         <div className="space-y-3">

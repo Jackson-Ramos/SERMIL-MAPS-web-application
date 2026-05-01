@@ -88,6 +88,9 @@ router.post('/visita/encerrar', (req, res, next) => {
 });
 
 // Confirmação da visita pelo visitante ao escanear o QR Code do porteiro.
+// Retorna a visita já com dados do lote e do morador de destino (latitude,
+// longitude, ramal, nome) para que o app do visitante possa orientá-lo
+// e oferecer o botão de ligar.
 router.post('/visita/confirmar', (req, res, next) => {
   try {
     const visitaId = Number(req.body.visita_id);
@@ -100,24 +103,32 @@ router.post('/visita/confirmar', (req, res, next) => {
       return res.status(404).json({ error: 'Visita não encontrada' });
     }
 
-    if (visita.status !== 'pendente') {
-      return res.json(transform(visita));
+    if (visita.status === 'pendente') {
+      db.prepare(`
+        UPDATE visitas
+           SET horario_entrada = datetime('now'),
+               status          = 'ativa',
+               rota            = COALESCE(?, rota),
+               app_navegacao   = COALESCE(?, app_navegacao)
+         WHERE id = ?
+      `).run(
+        req.body.rota ? JSON.stringify(req.body.rota) : null,
+        req.body.app_navegacao || null,
+        visitaId,
+      );
     }
 
-    db.prepare(`
-      UPDATE visitas
-         SET horario_entrada = datetime('now'),
-             status          = 'ativa',
-             rota            = COALESCE(?, rota),
-             app_navegacao   = COALESCE(?, app_navegacao)
-       WHERE id = ?
-    `).run(
-      req.body.rota ? JSON.stringify(req.body.rota) : null,
-      req.body.app_navegacao || null,
-      visitaId,
-    );
-
-    const row = db.prepare('SELECT * FROM visitas WHERE id = ?').get(visitaId);
+    const row = db.prepare(`
+      SELECT v.*,
+             l.latitude     AS lote_latitude,
+             l.longitude    AS lote_longitude,
+             m.nome         AS lote_nome_morador,
+             m.ramal        AS lote_ramal
+        FROM visitas v
+        LEFT JOIN lotes     l ON l.id      = v.lote_id
+        LEFT JOIN moradores m ON m.lote_id = v.lote_id
+       WHERE v.id = ?
+    `).get(visitaId);
     res.json(transform(row));
   } catch (err) { next(err); }
 });

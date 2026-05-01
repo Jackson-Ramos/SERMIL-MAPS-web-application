@@ -34,8 +34,18 @@ export default function DirecaoPage() {
 
     if (visitaId) {
       confirmarVisitaPublico(visitaId)
-        .then((visita) => {
+        .then((visita: any) => {
           setVisita(visita.id, visita.horario_entrada);
+          // Endpoint enriquecido: traz dados do lote/morador para que a tela
+          // de navegação possa oferecer o botão de ligar para o ramal.
+          setLote(
+            loteId,
+            loteNumero,
+            visita.lote_nome_morador ?? null,
+            visita.lote_ramal ?? null,
+            visita.lote_latitude ?? null,
+            visita.lote_longitude ?? null,
+          );
         })
         .catch((err) => {
           console.error('Erro ao confirmar visita:', err);
