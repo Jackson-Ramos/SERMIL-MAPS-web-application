@@ -59,11 +59,11 @@ export interface Visita {
   cond_id: number;
   quadra: string;
   lote: string;
-  horario_entrada: string;
+  horario_entrada: string | null;
   horario_saida: string | null;
   duracao_minutos: number | null;
   app_navegacao: string;
-  status: 'ativa' | 'encerrada' | 'expirada';
+  status: 'pendente' | 'ativa' | 'encerrada' | 'expirada';
   rota: any;
   observacoes: string | null;
 }

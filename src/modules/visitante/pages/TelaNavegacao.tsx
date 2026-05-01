@@ -11,7 +11,7 @@ export default function TelaNavegacao() {
   const navigate = useNavigate();
   const { config, fetchConfig } = useConfigStore();
   const [registrando, setRegistrando] = useState(false);
-  const { condId, quadraNome, loteNumero, loteId, cpf, loteLat, loteLon, setVisita } = useVisitanteStore();
+  const { condId, quadraNome, loteNumero, loteId, cpf, loteLat, loteLon, visitaId, setVisita } = useVisitanteStore();
 
   useEffect(() => {
     if (condId) {
@@ -27,11 +27,19 @@ export default function TelaNavegacao() {
         throw new Error('Dados da sessão incompletos');
       }
 
+      // Se a visita já foi confirmada (fluxo de QR gerado pelo porteiro),
+      // não cria um novo registro — apenas segue para a navegação.
+      if (visitaId) {
+        return;
+      }
+
       const visita = await iniciarVisita(
         cpf,
         loteId,
         condId,
-        { tipo: tipoRota }
+        { tipo: tipoRota },
+        quadraNome || '',
+        loteNumero || '',
       );
 
       setVisita(visita.id, visita.horario_entrada);

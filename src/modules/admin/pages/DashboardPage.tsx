@@ -83,9 +83,9 @@ function MetricCard({ label, value, icon, color, delay = 0, live = false }: Metr
 }
 
 // ─── Duration cell ─────────────────────────────────────────────────────────
-function DurationCell({ entrada }: { entrada: string }) {
+function DurationCell({ entrada }: { entrada: string | null }) {
   const text = calcularPermanencia(entrada);
-  const mins = Math.floor((Date.now() - new Date(entrada).getTime()) / 60000);
+  const mins = entrada ? Math.floor((Date.now() - new Date(entrada).getTime()) / 60000) : 0;
   const color =
     mins < 30  ? 'text-green-600 dark:text-green-400' :
     mins < 60  ? 'text-amber-600 dark:text-amber-400' :
@@ -125,7 +125,7 @@ export default function DashboardPage() {
         const condId = Number(import.meta.env.VITE_COND_ID) || 1;
         const historico = await getHistoricoVisitas(condId);
         const hoje = new Date().toISOString().split('T')[0];
-        const deHoje = historico.filter(v => v.horario_entrada.startsWith(hoje));
+        const deHoje = historico.filter(v => v.horario_entrada?.startsWith(hoje));
 
         setMetricas({
           visitasAtivas: visitasAtivas.length,

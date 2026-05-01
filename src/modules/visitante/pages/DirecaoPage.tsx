@@ -1,16 +1,18 @@
 import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useVisitanteStore } from '../../../shared/store/visitanteStore';
+import { confirmarVisita } from '../../../shared/services/visitaService';
 import Loading from '../../../shared/components/Loading';
 
 /**
  * Página intermediária acessada pelo QR Code gerado pelo porteiro.
- * Lê os parâmetros da URL, popula o visitanteStore e redireciona para /visitante/navegacao.
+ * Lê os parâmetros da URL, confirma a visita pendente (marcando o
+ * horario_entrada real) e redireciona para /visitante/navegacao.
  */
 export default function DirecaoPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { setCondGate, setCpf, setQuadra, setLote } = useVisitanteStore();
+  const { setCondGate, setCpf, setQuadra, setLote, setVisita } = useVisitanteStore();
 
   useEffect(() => {
     const condId = Number(searchParams.get('condId')) || 1;
@@ -18,21 +20,32 @@ export default function DirecaoPage() {
     const quadraNome = searchParams.get('quadraNome') || '';
     const loteNumero = searchParams.get('loteNumero') || '';
     const cpf = searchParams.get('cpf') || '';
+    const visitaId = Number(searchParams.get('visitaId')) || 0;
 
     if (!loteId) {
-      // Parâmetros inválidos, volta para a tela inicial
       navigate('/');
       return;
     }
 
-    // Popula o estado global do visitante com os dados do QR Code
     setCondGate(condId, 'manual');
     if (cpf) setCpf(cpf);
     setQuadra(0, quadraNome);
     setLote(loteId, loteNumero, null, null, null, null);
 
-    // Redireciona direto para a tela de navegação (escolha do app de mapa)
-    navigate('/visitante/navegacao', { replace: true });
+    if (visitaId) {
+      confirmarVisita(visitaId)
+        .then((visita) => {
+          setVisita(visita.id, visita.horario_entrada);
+        })
+        .catch((err) => {
+          console.error('Erro ao confirmar visita:', err);
+        })
+        .finally(() => {
+          navigate('/visitante/navegacao', { replace: true });
+        });
+    } else {
+      navigate('/visitante/navegacao', { replace: true });
+    }
   }, []);
 
   return <Loading />;

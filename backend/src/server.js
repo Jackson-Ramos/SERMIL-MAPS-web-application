@@ -14,24 +14,16 @@ app.use(helmet());
 
 // CORS: aceita uma lista separada por vírgula em FRONTEND_URL.
 // Em dev, o padrão cobre as portas que o Vite costuma usar.
-const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173,http://localhost:3000')
-  .split(',')
-  .map(o => o.trim());
-
-app.use(cors({
-  origin: (origin, cb) => {
-    if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
-      return cb(null, true);
-    }
-    cb(new Error(`Origem ${origin} não permitida pelo CORS`));
-  },
-}));
+app.use(cors({ origin: true }));
 
 app.use(express.json());
 
 app.get('/healthz', (_req, res) => res.json({ status: 'ok' }));
 
 app.use('/api/auth', require('./routes/auth'));
+
+// Endpoints públicos para o visitante (sem autenticação).
+app.use('/api/visita-publica', require('./routes/visitas-publicas'));
 
 app.use('/api/condominios', authMiddleware, require('./routes/condominios'));
 app.use('/api/quadras',     authMiddleware, require('./routes/quadras'));

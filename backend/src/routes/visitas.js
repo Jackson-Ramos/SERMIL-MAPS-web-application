@@ -3,22 +3,29 @@ const { db, transform } = require('../db');
 
 router.post('/iniciar', (req, res, next) => {
   try {
+    const isPendente = req.body.pendente === true;
+    const status = isPendente ? 'pendente' : 'ativa';
+    const horarioEntrada = isPendente ? null : new Date().toISOString().replace('T', ' ').slice(0, 19);
+
     const info = db.prepare(`
       INSERT INTO visitas (
         cond_id, lote_id, cpf, nome_visitante,
-        quadra, lote, app_navegacao, rota, porteiro_id
+        quadra, lote, app_navegacao, rota, porteiro_id,
+        horario_entrada, status
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       Number(req.user.cond_id),
       Number(req.body.lote_id),
       req.body.cpf,
-      req.body.nome_visitante || null,
-      req.body.quadra,
-      req.body.lote,
+      req.body.nome_visitante ?? null,
+      req.body.quadra ?? '',
+      req.body.lote ?? '',
       req.body.app_navegacao || 'interno',
-      req.body.rota || null,
+      req.body.rota ? JSON.stringify(req.body.rota) : null,
       req.user.role === 'porteiro' ? req.user.id : null,
+      horarioEntrada,
+      status,
     );
     const row = db.prepare('SELECT * FROM visitas WHERE id = ?').get(info.lastInsertRowid);
     res.status(201).json(transform(row));
@@ -34,8 +41,8 @@ router.patch('/encerrar', (req, res, next) => {
              observacoes   = COALESCE(?, observacoes)
        WHERE id = ? AND cond_id = ?
     `).run(
-      req.body.observacoes || null,
-      Number(req.body.id),
+      req.body.observacoes ?? null,
+      Number(req.body.visita_id ?? req.body.id),
       Number(req.user.cond_id),
     );
     res.json({ success: true });

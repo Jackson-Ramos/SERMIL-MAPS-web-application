@@ -65,6 +65,7 @@ export default function VisitasPage() {
     if (filtros.quadra && v.quadra !== filtros.quadra) return false;
     if (filtros.status && v.status !== filtros.status)  return false;
     if (filtros.dataInicio || filtros.dataFim) {
+      if (!v.horario_entrada) return false;
       const d = new Date(v.horario_entrada);
       d.setHours(0, 0, 0, 0);
       if (filtros.dataInicio) {
