@@ -1,10 +1,20 @@
 import { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, useMap } from 'react-leaflet';
 import { useNavigate } from 'react-router';
-import { Phone, MapPin, Navigation2, X, CheckCircle2 } from 'lucide-react';
+import { Phone, MapPin, Navigation2, X, CheckCircle2, AlertTriangle, Lock } from 'lucide-react';
 import L from 'leaflet';
 import { useVisitanteStore } from '../../../shared/store/visitanteStore';
 import { motion, AnimatePresence } from 'motion/react';
+
+type GpsState =
+  | { kind: 'searching' }
+  | { kind: 'ok' }
+  | { kind: 'denied' }
+  | { kind: 'unavailable' }
+  | { kind: 'timeout' }
+  | { kind: 'insecure' }
+  | { kind: 'unsupported' }
+  | { kind: 'skipped' };
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -34,6 +44,7 @@ function calcularDistanciaM(a: [number, number], b: [number, number]): number {
 export default function TelaMapa() {
   const navigate = useNavigate();
   const [posicaoAtual, setPosicaoAtual] = useState<[number, number] | null>(null);
+  const [gps, setGps] = useState<GpsState>({ kind: 'searching' });
   const [ramalAberto, setRamalAberto] = useState(false);
   const { loteLat, loteLon, loteMorador, loteRamal, quadraNome, loteNumero } = useVisitanteStore();
 
@@ -41,15 +52,52 @@ export default function TelaMapa() {
   const center = posicaoAtual || destino;
   const distancia = posicaoAtual ? calcularDistanciaM(posicaoAtual, destino) : null;
   const chegou = distancia !== null && distancia < 30;
+  const overlayBloqueante = gps.kind === 'searching';
 
   useEffect(() => {
-    if (!navigator.geolocation) return;
-    const id = navigator.geolocation.watchPosition(
-      (pos) => setPosicaoAtual([pos.coords.latitude, pos.coords.longitude]),
-      (err) => console.error('GPS:', err),
-      { enableHighAccuracy: true, maximumAge: 10000 },
+    if (!('geolocation' in navigator)) {
+      setGps({ kind: 'unsupported' });
+      return;
+    }
+
+    // Browsers só permitem geolocation em contextos seguros (HTTPS ou localhost).
+    // Detecta esse caso pra mostrar mensagem útil em vez de ficar preso.
+    const isSecureContext =
+      typeof window !== 'undefined' &&
+      (window.isSecureContext ||
+        window.location.hostname === 'localhost' ||
+        window.location.hostname === '127.0.0.1');
+
+    if (!isSecureContext) {
+      setGps({ kind: 'insecure' });
+      return;
+    }
+
+    let watchId: number | null = null;
+    const timeoutId = window.setTimeout(() => {
+      setGps((prev) => (prev.kind === 'searching' ? { kind: 'timeout' } : prev));
+    }, 12000);
+
+    watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        setPosicaoAtual([pos.coords.latitude, pos.coords.longitude]);
+        setGps({ kind: 'ok' });
+        window.clearTimeout(timeoutId);
+      },
+      (err) => {
+        window.clearTimeout(timeoutId);
+        if (err.code === err.PERMISSION_DENIED) setGps({ kind: 'denied' });
+        else if (err.code === err.POSITION_UNAVAILABLE) setGps({ kind: 'unavailable' });
+        else if (err.code === err.TIMEOUT) setGps({ kind: 'timeout' });
+        else setGps({ kind: 'unavailable' });
+      },
+      { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 },
     );
-    return () => navigator.geolocation.clearWatch(id);
+
+    return () => {
+      if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+      window.clearTimeout(timeoutId);
+    };
   }, []);
 
   return (
@@ -107,28 +155,41 @@ export default function TelaMapa() {
           animate={{ opacity: 1, y: 0 }}
           className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-100 dark:border-gray-800 p-3.5 flex items-center gap-3"
         >
-          <div className={`w-2 h-2 rounded-full shrink-0 ${chegou ? 'bg-green-500' : posicaoAtual ? 'bg-[#28b88d] animate-pulse' : 'bg-amber-400 animate-pulse'}`} />
+          <div className={`w-2 h-2 rounded-full shrink-0 ${
+            chegou
+              ? 'bg-green-500'
+              : posicaoAtual
+              ? 'bg-[#28b88d] animate-pulse'
+              : gps.kind === 'searching'
+              ? 'bg-amber-400 animate-pulse'
+              : 'bg-gray-400'
+          }`} />
           <p className="text-sm font-medium text-gray-700 dark:text-gray-300 flex-1">
-            {!posicaoAtual
-              ? 'Aguardando GPS...'
-              : chegou
+            {chegou
               ? 'Você está próximo do destino!'
-              : `Siga em direção ao destino — ~${distancia}m`}
+              : posicaoAtual
+              ? `Siga em direção ao destino — ~${distancia}m`
+              : gps.kind === 'searching'
+              ? 'Aguardando GPS...'
+              : 'Use o mapa para se orientar até o destino'}
           </p>
           <Navigation2 size={14} className="text-gray-400 dark:text-gray-500 shrink-0" />
         </motion.div>
 
-        {chegou && (
-          <motion.button
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            onClick={() => navigate('/visitante/chegada')}
-            className="w-full bg-[#0B4F3A] text-white rounded-2xl p-4 flex items-center justify-center gap-2.5 font-bold text-sm shadow-lg active:scale-[0.98] transition-transform"
-          >
-            <CheckCircle2 size={18} />
-            Confirmar chegada
-          </motion.button>
-        )}
+        {/* Botão de confirmar chegada — sempre disponível, não depende de GPS */}
+        <motion.button
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          onClick={() => navigate('/visitante/chegada')}
+          className={`w-full rounded-2xl p-4 flex items-center justify-center gap-2.5 font-bold text-sm shadow-lg active:scale-[0.98] transition-transform ${
+            chegou
+              ? 'bg-[#0B4F3A] text-white'
+              : 'bg-white dark:bg-gray-900 text-[#0B4F3A] dark:text-[#28b88d] border border-[#0B4F3A]/25 dark:border-[#28b88d]/25'
+          }`}
+        >
+          <CheckCircle2 size={18} />
+          {chegou ? 'Confirmar chegada' : 'Cheguei ao destino'}
+        </motion.button>
       </div>
 
       {/* Phone FAB */}
@@ -180,9 +241,9 @@ export default function TelaMapa() {
         )}
       </AnimatePresence>
 
-      {/* GPS loading overlay */}
+      {/* GPS overlay — bloqueante apenas durante a busca inicial */}
       <AnimatePresence>
-        {!posicaoAtual && (
+        {overlayBloqueante && (
           <motion.div
             initial={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -198,8 +259,58 @@ export default function TelaMapa() {
             <div>
               <p className="font-bold text-gray-900 dark:text-white text-base">Buscando sinal GPS...</p>
               <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
-                Certifique-se de que a localização está ativada no seu dispositivo.
+                Certifique-se de que a localização está ativada.
               </p>
+            </div>
+            <button
+              onClick={() => setGps({ kind: 'skipped' })}
+              className="mt-2 text-[12px] font-semibold text-gray-500 dark:text-gray-400 underline"
+            >
+              Continuar sem GPS
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Banner de aviso quando o GPS não está disponível */}
+      <AnimatePresence>
+        {!overlayBloqueante && gps.kind !== 'ok' && gps.kind !== 'skipped' && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="absolute top-[88px] left-4 right-4 z-[1000]"
+          >
+            <div className="bg-amber-50/95 dark:bg-amber-900/30 backdrop-blur-sm border border-amber-200 dark:border-amber-700/40 rounded-2xl shadow-lg p-3 flex items-start gap-3">
+              <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center shrink-0">
+                {gps.kind === 'insecure' ? (
+                  <Lock size={14} className="text-amber-700 dark:text-amber-400" />
+                ) : (
+                  <AlertTriangle size={14} className="text-amber-700 dark:text-amber-400" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[12px] font-bold text-amber-900 dark:text-amber-200">
+                  {gps.kind === 'insecure' && 'GPS bloqueado — conexão não segura'}
+                  {gps.kind === 'denied' && 'Permissão de localização negada'}
+                  {gps.kind === 'unavailable' && 'GPS indisponível'}
+                  {gps.kind === 'timeout' && 'Sem sinal de GPS'}
+                  {gps.kind === 'unsupported' && 'GPS não suportado'}
+                </p>
+                <p className="text-[11px] text-amber-800/80 dark:text-amber-300/80 mt-0.5 leading-snug">
+                  {gps.kind === 'insecure' && 'O navegador exige HTTPS para acessar a localização. Mostrando o destino sem rastreio em tempo real.'}
+                  {gps.kind === 'denied' && 'Habilite a localização nas configurações do site para ver sua posição.'}
+                  {gps.kind === 'unavailable' && 'Não foi possível obter sua localização. Use o mapa para se orientar.'}
+                  {gps.kind === 'timeout' && 'A localização está demorando. Você pode usar o mapa mesmo assim.'}
+                  {gps.kind === 'unsupported' && 'Seu navegador não suporta geolocalização.'}
+                </p>
+              </div>
+              <button
+                onClick={() => setGps({ kind: 'skipped' })}
+                className="shrink-0 text-amber-700 dark:text-amber-400 hover:text-amber-900 dark:hover:text-amber-200"
+              >
+                <X size={14} />
+              </button>
             </div>
           </motion.div>
         )}
