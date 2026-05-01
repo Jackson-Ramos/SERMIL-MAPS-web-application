@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useVisitanteStore } from '../../../shared/store/visitanteStore';
-import { confirmarVisita } from '../../../shared/services/visitaService';
+import { confirmarVisitaPublico } from '../../../shared/services/publicService';
 import Loading from '../../../shared/components/Loading';
 
 /**
@@ -33,7 +33,7 @@ export default function DirecaoPage() {
     setLote(loteId, loteNumero, null, null, null, null);
 
     if (visitaId) {
-      confirmarVisita(visitaId)
+      confirmarVisitaPublico(visitaId)
         .then((visita) => {
           setVisita(visita.id, visita.horario_entrada);
         })

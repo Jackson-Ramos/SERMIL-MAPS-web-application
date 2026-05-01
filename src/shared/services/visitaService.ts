@@ -43,7 +43,7 @@ export async function confirmarVisita(
   rotaJson?: any,
   appNavegacao?: string
 ): Promise<Visita> {
-  const response = await api.post('/visita-publica/confirmar', {
+  const response = await api.post('/publica/visita/confirmar', {
     visita_id: visitaId,
     rota: rotaJson,
     app_navegacao: appNavegacao,

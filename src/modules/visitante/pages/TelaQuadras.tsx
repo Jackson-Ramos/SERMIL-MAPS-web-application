@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { getQuadras } from '../../../shared/services/quadraService';
+import { getQuadrasPublico } from '../../../shared/services/publicService';
 import { Quadra } from '../../../shared/types';
 import Loading from '../../../shared/components/Loading';
 import { useVisitanteStore } from '../../../shared/store/visitanteStore';
@@ -31,7 +31,7 @@ export default function TelaQuadras() {
     }
 
     try {
-      const dados = await getQuadras(condId);
+      const dados = await getQuadrasPublico(condId);
       setQuadras(dados);
     } catch (error: any) {
       setErro(error.message || 'Erro ao carregar quadras');

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { getCondominio } from '../../../shared/services/condominioService';
+import { getCondominioPublico } from '../../../shared/services/publicService';
 import Input from '../../../shared/components/Input';
 import Button from '../../../shared/components/Button';
 import { validarCPF, mascararCPF } from '../../../shared/utils/cpf';
@@ -34,7 +34,7 @@ export default function TelaIdentificacao() {
   const carregarCondominio = async (condId: number) => {
     setCarregando(true);
     try {
-      const dados = await getCondominio(condId);
+      const dados = await getCondominioPublico(condId);
       setNomeCondominio(dados.nome);
     } catch {
       setErro('Erro ao carregar informações. Tente novamente.');

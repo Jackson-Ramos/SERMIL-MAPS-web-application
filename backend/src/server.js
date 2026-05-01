@@ -23,7 +23,8 @@ app.get('/healthz', (_req, res) => res.json({ status: 'ok' }));
 app.use('/api/auth', require('./routes/auth'));
 
 // Endpoints públicos para o visitante (sem autenticação).
-app.use('/api/visita-publica', require('./routes/visitas-publicas'));
+// Inclui leitura de condomínio/configurações/quadras/lotes e confirmação da visita.
+app.use('/api/publica', require('./routes/publicas'));
 
 app.use('/api/condominios', authMiddleware, require('./routes/condominios'));
 app.use('/api/quadras',     authMiddleware, require('./routes/quadras'));

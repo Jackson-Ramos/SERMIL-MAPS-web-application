@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { getConfiguracoes, updateConfiguracoes } from '../services/condominioService';
+import { getConfiguracoesPublico } from '../services/publicService';
 import { Configuracoes } from '../types';
 
 interface ConfigState {
@@ -15,13 +16,23 @@ const useConfigStore = create<ConfigState>((set) => ({
   loading: false,
   error: null,
 
+  // Tenta o endpoint autenticado primeiro (admin/porteiro);
+  // se não houver token ou falhar, cai no endpoint público (visitante).
   fetchConfig: async (condId: number) => {
     set({ loading: true, error: null });
     try {
-      const config = await getConfiguracoes(condId);
+      const hasToken = typeof localStorage !== 'undefined' && !!localStorage.getItem('sermil_token');
+      const config = hasToken
+        ? await getConfiguracoes(condId)
+        : await getConfiguracoesPublico(condId);
       set({ config, loading: false });
     } catch (error: any) {
-      set({ error: error.message, loading: false });
+      try {
+        const config = await getConfiguracoesPublico(condId);
+        set({ config, loading: false });
+      } catch (fallbackError: any) {
+        set({ error: fallbackError.message, loading: false });
+      }
     }
   },
 

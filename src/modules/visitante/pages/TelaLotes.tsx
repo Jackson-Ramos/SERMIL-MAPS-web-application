@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { getLotes } from '../../../shared/services/loteService';
+import { getLotesPublico } from '../../../shared/services/publicService';
 import { Lote } from '../../../shared/types';
 import Loading from '../../../shared/components/Loading';
 import { useVisitanteStore } from '../../../shared/store/visitanteStore';
@@ -31,7 +31,7 @@ export default function TelaLotes() {
     }
 
     try {
-      const dados = await getLotes(quadraId);
+      const dados = await getLotesPublico(quadraId);
       setLotes(dados);
     } catch (error: any) {
       setErro(error.message || 'Erro ao carregar lotes');
