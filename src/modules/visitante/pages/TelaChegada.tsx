@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { encerrarVisitaPublico } from '../../../shared/services/publicService';
 import { calcularPermanencia, formatarHora } from '../../../shared/utils/tempo';
-import { CheckCircle2, MapPin, Clock, Timer, Map } from 'lucide-react';
+import { CheckCircle2, MapPin, Clock, Timer, Map, ShieldCheck } from 'lucide-react';
 import { useVisitanteStore } from '../../../shared/store/visitanteStore';
 import VisitanteLayout from '../VisitanteLayout';
 import Button from '../../../shared/components/Button';
@@ -24,11 +24,10 @@ export default function TelaChegada() {
     setEncerrando(true);
     try {
       await encerrarVisitaPublico(visitaId);
+      // Limpa a sessão localmente, mas mantém o visitante na tela final.
+      // Não redirecionamos para /, pois a Home expõe o login de funcionário.
+      clear();
       setEncerrado(true);
-      setTimeout(() => {
-        clear();
-        navigate('/', { replace: true });
-      }, 2500);
     } catch {
       alert('Erro ao encerrar visita. Tente novamente.');
       setEncerrando(false);
@@ -144,27 +143,58 @@ export default function TelaChegada() {
         </motion.div>
       </div>
 
-      {/* Full-screen success overlay */}
+      {/* Tela final permanente após encerrar — sem links para Home/login. */}
       <AnimatePresence>
         {encerrado && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-[#0B4F3A]/95 backdrop-blur-sm flex flex-col items-center justify-center gap-5 px-8 text-center"
+            className="fixed inset-0 z-50 bg-[#0B4F3A] flex flex-col items-center justify-center gap-6 px-8 text-center overflow-hidden"
           >
+            {/* Decoração: dot grid + bolha */}
+            <div
+              className="absolute inset-0 pointer-events-none opacity-[0.08]"
+              style={{
+                backgroundImage:
+                  'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.6) 1px, transparent 0)',
+                backgroundSize: '20px 20px',
+              }}
+            />
+            <div className="absolute -top-20 -right-12 w-64 h-64 rounded-full bg-[#28b88d]/15 pointer-events-none" />
+            <div className="absolute -bottom-24 -left-12 w-72 h-72 rounded-full bg-[#28b88d]/10 pointer-events-none" />
+
             <motion.div
               initial={{ scale: 0.5, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-              className="w-20 h-20 rounded-full bg-white/15 flex items-center justify-center"
+              className="relative w-24 h-24 rounded-full bg-white/15 flex items-center justify-center backdrop-blur-sm border border-white/20"
             >
-              <CheckCircle2 size={44} className="text-white" />
+              <CheckCircle2 size={52} className="text-white" />
             </motion.div>
-            <div>
-              <p className="text-xl font-bold text-white">Visita encerrada!</p>
-              <p className="text-white/70 text-sm mt-1">Obrigado por utilizar o SERMIL MAPS.</p>
-            </div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="relative space-y-2 max-w-xs"
+            >
+              <p className="text-2xl font-bold text-white tracking-tight">Visita encerrada!</p>
+              <p className="text-white/75 text-sm leading-relaxed">
+                Obrigado por utilizar o SERMIL MAPS. Boa permanência!
+              </p>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.4 }}
+              className="relative flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 backdrop-blur-sm"
+            >
+              <ShieldCheck size={13} className="text-[#28b88d]" />
+              <span className="text-[11px] font-semibold text-white/80 tracking-wide">
+                Você pode fechar esta aba
+              </span>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
