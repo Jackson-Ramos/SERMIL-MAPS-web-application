@@ -27,6 +27,8 @@ export default function LoginPage() {
         navigate('/admin');
       } else if (data.usuario.role === 'porteiro') {
         navigate('/porteiro');
+      } else if (data.usuario.role === 'morador') {
+        navigate('/morador');
       } else {
         navigate('/');
       }
@@ -214,6 +216,9 @@ export default function LoginPage() {
               </div>
               <div>
                 <span className="font-medium">Porteiro:</span> porteiro@sermilmaps.com
+              </div>
+              <div>
+                <span className="font-medium">Morador:</span> morador@sermilmaps.com
               </div>
               <div>
                 <span className="font-medium">Senha:</span> Sermil@2026

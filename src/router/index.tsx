@@ -5,6 +5,7 @@ import LoginPage from '../shared/pages/LoginPage';
 import AdminLayout from '../modules/admin/AdminLayout';
 import DashboardPage from '../modules/admin/pages/DashboardPage';
 import VisitasPage from '../modules/admin/pages/VisitasPage';
+import EventosAdminPage from '../modules/admin/pages/EventosAdminPage';
 import QuadrasLotesPage from '../modules/admin/pages/QuadrasLotesPage';
 import MoradoresPage from '../modules/admin/pages/MoradoresPage';
 import UsuariosPage from '../modules/admin/pages/UsuariosPage';
@@ -26,6 +27,12 @@ import TelaMapa from '../modules/visitante/pages/TelaMapa';
 import TelaChegada from '../modules/visitante/pages/TelaChegada';
 import DirecaoPage from '../modules/visitante/pages/DirecaoPage';
 
+import MoradorLayout from '../modules/morador/MoradorLayout';
+import AgendamentosPage from '../modules/morador/pages/AgendamentosPage';
+import MoradorHistoricoPage from '../modules/morador/pages/MoradorHistoricoPage';
+import EventosPage from '../modules/morador/pages/EventosPage';
+import ConvitePage from '../modules/morador/pages/ConvitePage';
+
 export default function Router() {
   return (
     <BrowserRouter>
@@ -36,6 +43,7 @@ export default function Router() {
 
         <Route path="/admin" element={<ProtectedRoute roleRequired="admin"><AdminLayout><DashboardPage /></AdminLayout></ProtectedRoute>} />
         <Route path="/admin/visitas" element={<ProtectedRoute roleRequired="admin"><AdminLayout><VisitasPage /></AdminLayout></ProtectedRoute>} />
+        <Route path="/admin/eventos" element={<ProtectedRoute roleRequired="admin"><AdminLayout><EventosAdminPage /></AdminLayout></ProtectedRoute>} />
         <Route path="/admin/quadras-lotes" element={<ProtectedRoute roleRequired="admin"><AdminLayout><QuadrasLotesPage /></AdminLayout></ProtectedRoute>} />
         <Route path="/admin/moradores" element={<ProtectedRoute roleRequired="admin"><AdminLayout><MoradoresPage /></AdminLayout></ProtectedRoute>} />
         <Route path="/admin/usuarios" element={<ProtectedRoute roleRequired="admin"><AdminLayout><UsuariosPage /></AdminLayout></ProtectedRoute>} />
@@ -46,6 +54,12 @@ export default function Router() {
         <Route path="/porteiro/historico" element={<ProtectedRoute roleRequired="porteiro"><PorteiroLayout><HistoricoPage /></PorteiroLayout></ProtectedRoute>} />
         <Route path="/porteiro/registro" element={<ProtectedRoute roleRequired="porteiro"><PorteiroLayout><RegistroManualPage /></PorteiroLayout></ProtectedRoute>} />
         <Route path="/porteiro/ramal" element={<ProtectedRoute roleRequired="porteiro"><PorteiroLayout><RamalPage /></PorteiroLayout></ProtectedRoute>} />
+
+        <Route path="/morador" element={<ProtectedRoute roleRequired="morador"><MoradorLayout><AgendamentosPage /></MoradorLayout></ProtectedRoute>} />
+        <Route path="/morador/historico" element={<ProtectedRoute roleRequired="morador"><MoradorLayout><MoradorHistoricoPage /></MoradorLayout></ProtectedRoute>} />
+        <Route path="/morador/eventos" element={<ProtectedRoute roleRequired="morador"><MoradorLayout><EventosPage /></MoradorLayout></ProtectedRoute>} />
+
+        <Route path="/convite/:token" element={<ConvitePage />} />
 
         <Route path="/visitante" element={<TelaIdentificacao />} />
         <Route path="/visitante/quadras" element={<TelaQuadras />} />

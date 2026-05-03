@@ -42,10 +42,15 @@ VALUES (1, 'Porteiro Principal', 'porteiro@sermilmaps.com',
         '$2a$10$S8QHFCr4ipWsua3s166aMOMGX9RYFcHf1z3W0u1LxJHcTYc1Cisba',
         'porteiro', 1);
 
--- Moradores
-INSERT INTO moradores (lote_id, nome, cpf, ramal) VALUES (1, 'Carlos Alberto Souza',  '123.456.789-00', '9001');
-INSERT INTO moradores (lote_id, nome, cpf, ramal) VALUES (2, 'Mariana Ferreira Lima', '987.654.321-00', '9002');
-INSERT INTO moradores (lote_id, nome, cpf, ramal) VALUES (3, 'Roberto Alves Costa',   '456.789.123-00', '9003');
+INSERT INTO usuarios (cond_id, nome, email, senha_hash, role, ativo)
+VALUES (1, 'Carlos Alberto Souza', 'morador@sermilmaps.com',
+        '$2a$10$S8QHFCr4ipWsua3s166aMOMGX9RYFcHf1z3W0u1LxJHcTYc1Cisba',
+        'morador', 1);
+
+-- Moradores (o primeiro está vinculado ao usuário morador@sermilmaps.com)
+INSERT INTO moradores (lote_id, nome, cpf, ramal, user_id) VALUES (1, 'Carlos Alberto Souza',  '123.456.789-00', '9001', 3);
+INSERT INTO moradores (lote_id, nome, cpf, ramal)          VALUES (2, 'Mariana Ferreira Lima', '987.654.321-00', '9002');
+INSERT INTO moradores (lote_id, nome, cpf, ramal)          VALUES (3, 'Roberto Alves Costa',   '456.789.123-00', '9003');
 
 -- QR Codes de exemplo
 INSERT INTO qr_codes (cond_id, criado_por, nome_portao, token, url, ativo, uso_unico)

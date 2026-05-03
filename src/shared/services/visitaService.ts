@@ -10,7 +10,8 @@ export async function iniciarVisita(
   quadra: string,
   lote: string,
   nomeVisitante?: string,
-  pendente: boolean = false
+  pendente: boolean = false,
+  appNavegacao?: string,
 ): Promise<Visita> {
   try {
     const response = await api.post('/visita/iniciar', {
@@ -22,6 +23,7 @@ export async function iniciarVisita(
       nome_visitante: nomeVisitante ?? null,
       rota: rotaJson,
       pendente,
+      app_navegacao: appNavegacao ?? null,
     });
     if (!response.data && USE_MOCK) {
       return await mockAPI.iniciarVisita(cpf, loteId, condId, rotaJson) as Visita;

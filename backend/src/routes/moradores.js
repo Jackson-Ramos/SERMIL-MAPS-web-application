@@ -20,12 +20,13 @@ router.get('/', (req, res, next) => {
 router.post('/', (req, res, next) => {
   try {
     const info = db.prepare(
-      'INSERT INTO moradores (lote_id, nome, cpf, ramal) VALUES (?, ?, ?, ?)'
+      'INSERT INTO moradores (lote_id, nome, cpf, ramal, user_id) VALUES (?, ?, ?, ?, ?)'
     ).run(
       Number(req.body.lote_id),
       req.body.nome,
       req.body.cpf   || null,
       req.body.ramal || null,
+      req.body.user_id ? Number(req.body.user_id) : null,
     );
     const row = db.prepare('SELECT * FROM moradores WHERE id = ?').get(info.lastInsertRowid);
     res.status(201).json(transform(row));
@@ -40,13 +41,15 @@ router.put('/:id', (req, res, next) => {
          SET nome    = COALESCE(?, nome),
              cpf     = COALESCE(?, cpf),
              ramal   = COALESCE(?, ramal),
-             lote_id = COALESCE(?, lote_id)
+             lote_id = COALESCE(?, lote_id),
+             user_id = COALESCE(?, user_id)
        WHERE id = ?
     `).run(
       b.nome    ?? null,
       b.cpf     ?? null,
       b.ramal   ?? null,
       b.lote_id ?? null,
+      b.user_id ?? null,
       Number(req.params.id),
     );
     res.json({ success: true });

@@ -113,6 +113,86 @@ CREATE TABLE qr_codes (
 
 CREATE INDEX idx_qr_token ON qr_codes (token);
 
+-- =============================================================================
+-- Módulo do Morador: agendamentos de visita e lista de convidados.
+-- =============================================================================
+
+-- Eventos do morador (aniversário, churrasco, reunião). Define onde será
+-- realizado (na residência ou em uma área comum) e a data/hora.
+CREATE TABLE eventos (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    morador_id        INTEGER NOT NULL,
+    cond_id           INTEGER NOT NULL,
+    titulo            TEXT    NOT NULL,
+    local_tipo        TEXT    NOT NULL CHECK (local_tipo IN ('residencia', 'area_comum')),
+    local_nome        TEXT,
+    data_inicio       TEXT    NOT NULL,
+    data_fim          TEXT,
+    observacoes       TEXT,
+    status            TEXT    NOT NULL DEFAULT 'agendado' CHECK (status IN ('agendado', 'realizado', 'cancelado')),
+    aprovacao_status  TEXT    NOT NULL DEFAULT 'pendente' CHECK (aprovacao_status IN ('pendente', 'aprovado', 'rejeitado')),
+    motivo_rejeicao   TEXT,
+    revisado_por      INTEGER,
+    revisado_em       TEXT,
+    morador_ciente    INTEGER NOT NULL DEFAULT 1 CHECK (morador_ciente IN (0, 1)),
+    criado_em         TEXT    NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (morador_id)   REFERENCES moradores(id)   ON DELETE CASCADE,
+    FOREIGN KEY (cond_id)      REFERENCES condominios(id) ON DELETE CASCADE,
+    FOREIGN KEY (revisado_por) REFERENCES usuarios(id)    ON DELETE SET NULL
+);
+
+CREATE INDEX idx_eventos_morador ON eventos (morador_id, data_inicio DESC);
+
+-- Lista de convidados associada a um evento. Pode ser preenchida manualmente
+-- ou via link enviado ao convidado. Quando o link é usado, fica desabilitado.
+CREATE TABLE convidados (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    morador_id     INTEGER NOT NULL,
+    cond_id        INTEGER NOT NULL,
+    evento_id      INTEGER,
+    nome           TEXT,
+    cpf            TEXT,
+    telefone       TEXT,
+    observacoes    TEXT,
+    origem         TEXT    NOT NULL DEFAULT 'manual' CHECK (origem IN ('manual', 'link')),
+    link_token     TEXT    UNIQUE,
+    link_status    TEXT    CHECK (link_status IN ('pendente', 'preenchido', 'desabilitado')),
+    preenchido_em  TEXT,
+    criado_em      TEXT    NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (morador_id) REFERENCES moradores(id)   ON DELETE CASCADE,
+    FOREIGN KEY (cond_id)    REFERENCES condominios(id) ON DELETE CASCADE,
+    FOREIGN KEY (evento_id)  REFERENCES eventos(id)     ON DELETE CASCADE
+);
+
+CREATE INDEX idx_convidados_morador ON convidados (morador_id, criado_em DESC);
+CREATE INDEX idx_convidados_evento  ON convidados (evento_id, criado_em DESC);
+CREATE INDEX idx_convidados_token   ON convidados (link_token);
+
+-- Agendamentos de visita criados pelo morador. Quando a visita realmente acontece,
+-- visita_id é preenchido e o status muda para 'realizada'.
+CREATE TABLE agendamentos (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    morador_id      INTEGER NOT NULL,
+    cond_id         INTEGER NOT NULL,
+    lote_id         INTEGER NOT NULL,
+    convidado_id    INTEGER,
+    nome_visitante  TEXT    NOT NULL,
+    cpf             TEXT,
+    data_prevista   TEXT    NOT NULL,
+    observacoes     TEXT,
+    status          TEXT    NOT NULL DEFAULT 'agendado' CHECK (status IN ('agendado', 'realizada', 'cancelada', 'expirada')),
+    visita_id       INTEGER,
+    criado_em       TEXT    NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (morador_id)   REFERENCES moradores(id)   ON DELETE CASCADE,
+    FOREIGN KEY (cond_id)      REFERENCES condominios(id) ON DELETE CASCADE,
+    FOREIGN KEY (lote_id)      REFERENCES lotes(id),
+    FOREIGN KEY (convidado_id) REFERENCES convidados(id)  ON DELETE SET NULL,
+    FOREIGN KEY (visita_id)    REFERENCES visitas(id)     ON DELETE SET NULL
+);
+
+CREATE INDEX idx_agendamentos_morador ON agendamentos (morador_id, data_prevista DESC);
+CREATE INDEX idx_agendamentos_data    ON agendamentos (cond_id, data_prevista DESC);
+
 -- -----------------------------------------------------------------------------
 -- Triggers
 -- -----------------------------------------------------------------------------

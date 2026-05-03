@@ -1,5 +1,6 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router';
+import { getContadoresAdmin } from '../../shared/services/eventoAdminService';
 import {
   LayoutDashboard,
   Users,
@@ -9,6 +10,7 @@ import {
   Settings,
   Home,
   ClipboardList,
+  PartyPopper,
   LogOut,
   Moon,
   Sun,
@@ -37,6 +39,7 @@ const navGroups: NavGroup[] = [
     items: [
       { path: '/admin',         icon: LayoutDashboard, label: 'Dashboard' },
       { path: '/admin/visitas', icon: ClipboardList,   label: 'Visitas'   },
+      { path: '/admin/eventos', icon: PartyPopper,     label: 'Eventos'   },
     ],
   },
   {
@@ -60,6 +63,30 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const location = useLocation();
   const { logout }     = useAuthStore();
   const { theme, setTheme } = useTheme();
+  const [eventosPendentes, setEventosPendentes] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    const carregar = async () => {
+      try {
+        const c = await getContadoresAdmin();
+        if (!cancelled) setEventosPendentes(c.pendente);
+      } catch { /* silencioso — badge é informativo */ }
+    };
+    carregar();
+    const interval = setInterval(carregar, 60_000);
+    const onChange = () => carregar();
+    window.addEventListener('eventos:atualizado', onChange);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      window.removeEventListener('eventos:atualizado', onChange);
+    };
+  }, [location.pathname]);
+
+  const badgePor: Record<string, number> = {
+    '/admin/eventos': eventosPendentes,
+  };
 
   const isActive = (path: string) =>
     path === '/admin'
@@ -111,6 +138,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               <div className="space-y-0.5">
                 {group.items.map(({ path, icon: Icon, label }) => {
                   const active = isActive(path);
+                  const badge = badgePor[path];
                   return (
                     <Link
                       key={path}
@@ -143,7 +171,13 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                         <Icon size={15} />
                       </span>
 
-                      <span className="truncate text-[13px]">{label}</span>
+                      <span className="truncate text-[13px] flex-1">{label}</span>
+
+                      {badge && badge > 0 ? (
+                        <span className="flex-shrink-0 min-w-[18px] h-[18px] px-1 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center">
+                          {badge > 99 ? '99+' : badge}
+                        </span>
+                      ) : null}
                     </Link>
                   );
                 })}

@@ -36,9 +36,16 @@ router.patch('/encerrar', (req, res, next) => {
   try {
     db.prepare(`
       UPDATE visitas
-         SET horario_saida = datetime('now'),
-             status        = 'encerrada',
-             observacoes   = COALESCE(?, observacoes)
+         SET horario_saida    = datetime('now'),
+             status           = 'encerrada',
+             duracao_minutos  = CASE
+               WHEN horario_entrada IS NULL THEN duracao_minutos
+               ELSE CAST(
+                 (julianday('now') - julianday(horario_entrada)) * 1440 + 0.5
+                 AS INTEGER
+               )
+             END,
+             observacoes      = COALESCE(?, observacoes)
        WHERE id = ? AND cond_id = ?
     `).run(
       req.body.observacoes ?? null,

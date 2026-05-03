@@ -34,6 +34,8 @@ app.use('/api/usuarios',    authMiddleware, require('./routes/usuarios'));
 app.use('/api/visita',      authMiddleware, require('./routes/visitas'));
 app.use('/api/visitas',     authMiddleware, require('./routes/visitas'));
 app.use('/api/qrcodes',     authMiddleware, require('./routes/qrcodes'));
+app.use('/api/morador',     authMiddleware, require('./routes/morador'));
+app.use('/api/eventos',     authMiddleware, require('./routes/eventos'));
 
 app.use(errorHandler);
 

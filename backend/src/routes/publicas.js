@@ -76,9 +76,16 @@ router.post('/visita/encerrar', (req, res, next) => {
 
     db.prepare(`
       UPDATE visitas
-         SET horario_saida = datetime('now'),
-             status        = 'encerrada',
-             observacoes   = COALESCE(?, observacoes)
+         SET horario_saida    = datetime('now'),
+             status           = 'encerrada',
+             duracao_minutos  = CASE
+               WHEN horario_entrada IS NULL THEN duracao_minutos
+               ELSE CAST(
+                 (julianday('now') - julianday(horario_entrada)) * 1440 + 0.5
+                 AS INTEGER
+               )
+             END,
+             observacoes      = COALESCE(?, observacoes)
        WHERE id = ?
     `).run(req.body.observacoes ?? null, visitaId);
 
@@ -129,6 +136,74 @@ router.post('/visita/confirmar', (req, res, next) => {
         LEFT JOIN moradores m ON m.lote_id = v.lote_id
        WHERE v.id = ?
     `).get(visitaId);
+    res.json(transform(row));
+  } catch (err) { next(err); }
+});
+
+// ─── Convite enviado pelo morador a um convidado ──────────────────────────
+// Fluxo: morador gera um link com token único → envia ao convidado →
+// convidado abre o link, preenche o nome (e opcionalmente CPF/telefone) →
+// link fica desabilitado (uso único).
+
+router.get('/convite/:token', (req, res, next) => {
+  try {
+    const row = db.prepare(`
+      SELECT c.id, c.link_status, c.nome, c.preenchido_em,
+             m.nome    AS morador_nome,
+             q.nome    AS quadra_nome,
+             l.numero  AS lote_numero,
+             cond.nome AS condominio_nome,
+             e.id          AS evento_id,
+             e.titulo      AS evento_titulo,
+             e.local_tipo  AS evento_local_tipo,
+             e.local_nome  AS evento_local_nome,
+             e.data_inicio AS evento_data_inicio,
+             e.data_fim    AS evento_data_fim,
+             e.observacoes AS evento_observacoes
+        FROM convidados c
+        JOIN moradores  m    ON m.id   = c.morador_id
+        JOIN lotes      l    ON l.id   = m.lote_id
+        JOIN quadras    q    ON q.id   = l.quadra_id
+        JOIN condominios cond ON cond.id = c.cond_id
+        LEFT JOIN eventos e  ON e.id   = c.evento_id
+       WHERE c.link_token = ?
+    `).get(req.params.token);
+
+    if (!row) return res.status(404).json({ error: 'Convite não encontrado' });
+    res.json(transform(row));
+  } catch (err) { next(err); }
+});
+
+router.post('/convite/:token', (req, res, next) => {
+  try {
+    const nome = (req.body.nome || '').trim();
+    if (!nome) return res.status(400).json({ error: 'nome é obrigatório' });
+
+    const convite = db.prepare(
+      'SELECT id, link_status FROM convidados WHERE link_token = ?'
+    ).get(req.params.token);
+    if (!convite) return res.status(404).json({ error: 'Convite não encontrado' });
+    if (convite.link_status !== 'pendente') {
+      return res.status(409).json({ error: 'Este link já foi utilizado' });
+    }
+
+    db.prepare(`
+      UPDATE convidados
+         SET nome          = ?,
+             cpf           = COALESCE(?, cpf),
+             telefone      = COALESCE(?, telefone),
+             link_status   = 'preenchido',
+             preenchido_em = datetime('now')
+       WHERE id = ?
+    `).run(
+      nome,
+      req.body.cpf      || null,
+      req.body.telefone || null,
+      convite.id,
+    );
+
+    const row = db.prepare('SELECT id, nome, link_status, preenchido_em FROM convidados WHERE id = ?')
+      .get(convite.id);
     res.json(transform(row));
   } catch (err) { next(err); }
 });

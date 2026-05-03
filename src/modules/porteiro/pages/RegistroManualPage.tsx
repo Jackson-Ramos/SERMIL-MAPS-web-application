@@ -30,10 +30,12 @@ interface QRData {
   loteNumero: string;
   morador?: string;
   cpf: string;
+  nomeVisitante?: string;
 }
 
 export default function RegistroManualPage() {
   const [cpf, setCpf] = useState('');
+  const [nomeVisitante, setNomeVisitante] = useState('');
   const [quadras, setQuadras] = useState<Quadra[]>([]);
   const [quadraSelecionada, setQuadraSelecionada] = useState<number | null>(null);
   const [lotes, setLotes] = useState<Lote[]>([]);
@@ -103,11 +105,12 @@ export default function RegistroManualPage() {
         cpf,
         loteSelecionado,
         condId,
-        { tipo: 'manual' },
+        null,
         quadraAtual?.nome || '',
         loteAtual?.numero || '',
-        undefined,
+        nomeVisitante.trim() || undefined,
         true,
+        'manual',
       );
 
       const baseUrl = window.location.origin;
@@ -127,6 +130,7 @@ export default function RegistroManualPage() {
         loteNumero: loteAtual?.numero || '',
         morador: loteAtual?.nome_morador || undefined,
         cpf,
+        nomeVisitante: nomeVisitante.trim() || undefined,
       });
 
       toast.success('Visita pré-registrada! O horário será marcado quando o visitante escanear o QR.');
@@ -140,6 +144,7 @@ export default function RegistroManualPage() {
   const handleNovaVisita = () => {
     setQrData(null);
     setCpf('');
+    setNomeVisitante('');
     setQuadraSelecionada(null);
     setLoteSelecionado(null);
   };
@@ -183,6 +188,15 @@ export default function RegistroManualPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="p-5 space-y-5">
+            <Input
+              label="Nome do Visitante"
+              value={nomeVisitante}
+              onChange={(e) => setNomeVisitante(e.target.value)}
+              placeholder="Nome completo"
+              maxLength={120}
+              startIcon={<User size={15} />}
+            />
+
             <Input
               label="CPF do Visitante"
               value={cpf}
@@ -314,8 +328,9 @@ export default function RegistroManualPage() {
 
           <div className="p-6 flex flex-col items-center gap-5">
             {/* Info do destino */}
-            <div className="w-full grid grid-cols-3 gap-2 sm:gap-3">
-              <InfoTile label="Visitante" value={qrData.cpf} mono />
+            <div className="w-full grid grid-cols-2 gap-2 sm:gap-3">
+              <InfoTile label="Visitante" value={qrData.nomeVisitante || '—'} />
+              <InfoTile label="CPF" value={qrData.cpf} mono />
               <InfoTile label="Destino" value={`Q.${qrData.quadraNome} — L.${qrData.loteNumero}`} />
               <InfoTile label="Morador" value={qrData.morador || '—'} />
             </div>
