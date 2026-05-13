@@ -52,3 +52,9 @@ coverage/
 
 # Banco de dados SQLite (gerado em runtime pelo backend)
 backend/data/
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+!.env.example
