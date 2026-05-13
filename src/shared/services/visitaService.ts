@@ -6,14 +6,24 @@ export async function iniciarVisita(
   cpf: string,
   loteId: number,
   condId: number,
-  rotaJson: any
+  rotaJson: any,
+  quadra: string,
+  lote: string,
+  nomeVisitante?: string,
+  pendente: boolean = false,
+  appNavegacao?: string,
 ): Promise<Visita> {
   try {
     const response = await api.post('/visita/iniciar', {
       cpf,
       lote_id: loteId,
       cond_id: condId,
+      quadra,
+      lote,
+      nome_visitante: nomeVisitante ?? null,
       rota: rotaJson,
+      pendente,
+      app_navegacao: appNavegacao ?? null,
     });
     if (!response.data && USE_MOCK) {
       return await mockAPI.iniciarVisita(cpf, loteId, condId, rotaJson) as Visita;
@@ -25,6 +35,22 @@ export async function iniciarVisita(
     }
     throw error;
   }
+}
+
+// Confirma uma visita pré-registrada pelo porteiro: marca o horario_entrada
+// real (momento do scan) e altera o status de "pendente" para "ativa".
+// Endpoint público (não requer autenticação) — usado pelo visitante.
+export async function confirmarVisita(
+  visitaId: number,
+  rotaJson?: any,
+  appNavegacao?: string
+): Promise<Visita> {
+  const response = await api.post('/publica/visita/confirmar', {
+    visita_id: visitaId,
+    rota: rotaJson,
+    app_navegacao: appNavegacao,
+  });
+  return response.data;
 }
 
 export async function encerrarVisita(visitaId: number): Promise<Visita> {

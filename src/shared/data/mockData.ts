@@ -1,4 +1,4 @@
-import { Condominio, Configuracoes, Quadra, Lote, Visita, QRCode, Morador } from '../types';
+import { Condominio, Configuracoes, Quadra, Lote, Visita, QRCode, Morador, Usuario } from '../types';
 
 export const mockCondominio: Condominio = {
   id: 1,
@@ -178,25 +178,82 @@ export const mockMoradores: Morador[] = [
   {
     id: 1,
     nome: 'João Silva',
+    cpf: '123.456.789-00',
+    lote_id: 1,
     quadra: 'A',
     lote: '1',
     ramal: '1001',
+    user_id: 3,
     total_visitas: 45,
   },
   {
     id: 2,
     nome: 'Maria Santos',
+    cpf: '987.654.321-00',
+    lote_id: 2,
     quadra: 'A',
     lote: '2',
     ramal: '1002',
+    user_id: 4,
     total_visitas: 32,
   },
   {
     id: 3,
     nome: 'Pedro Oliveira',
+    cpf: '456.789.012-00',
+    lote_id: 4,
     quadra: 'A',
     lote: '4',
     ramal: '1004',
+    user_id: null,
     total_visitas: 28,
+  },
+];
+
+export const mockUsuarios: Usuario[] = [
+  {
+    id: 1,
+    nome: 'Admin Sistema',
+    email: 'admin@sermil.com',
+    papel: 'admin',
+    cond_id: 1,
+    ativo: true,
+    criado_em: '2024-01-01T00:00:00.000Z',
+  },
+  {
+    id: 2,
+    nome: 'João Porteiro',
+    email: 'porteiro@sermil.com',
+    papel: 'porteiro',
+    cond_id: 1,
+    ativo: true,
+    criado_em: '2024-01-05T00:00:00.000Z',
+  },
+  {
+    id: 3,
+    nome: 'João Silva',
+    email: 'joao.silva@sermil.com',
+    papel: 'morador',
+    cond_id: 1,
+    ativo: true,
+    criado_em: '2024-01-10T00:00:00.000Z',
+  },
+  {
+    id: 4,
+    nome: 'Maria Santos',
+    email: 'maria.santos@sermil.com',
+    papel: 'morador',
+    cond_id: 1,
+    ativo: true,
+    criado_em: '2024-01-10T00:00:00.000Z',
+  },
+  {
+    id: 5,
+    nome: 'Pedro Oliveira',
+    email: 'pedro.oliveira@sermil.com',
+    papel: 'morador',
+    cond_id: 1,
+    ativo: false,
+    criado_em: '2024-01-15T00:00:00.000Z',
   },
 ];

@@ -18,7 +18,7 @@ interface VisitanteState {
   setCpf: (cpf: string) => void;
   setQuadra: (id: number, nome: string) => void;
   setLote: (id: number, numero: string, morador: string | null, ramal: string | null, lat: number | null, lon: number | null) => void;
-  setVisita: (id: number, horario: string) => void;
+  setVisita: (id: number, horario: string | null) => void;
   clear: () => void;
 }
 

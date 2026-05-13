@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { getLotes } from '../../../shared/services/loteService';
+import { getLotesPublico } from '../../../shared/services/publicService';
 import { Lote } from '../../../shared/types';
 import Loading from '../../../shared/components/Loading';
-import ErrorMessage from '../../../shared/components/ErrorMessage';
 import { useVisitanteStore } from '../../../shared/store/visitanteStore';
+import VisitanteLayout from '../VisitanteLayout';
+import { AlertCircle, RotateCcw, User } from 'lucide-react';
+import { motion } from 'motion/react';
+import Button from '../../../shared/components/Button';
 
 export default function TelaLotes() {
   const navigate = useNavigate();
@@ -28,7 +31,7 @@ export default function TelaLotes() {
     }
 
     try {
-      const dados = await getLotes(quadraId);
+      const dados = await getLotesPublico(quadraId);
       setLotes(dados);
     } catch (error: any) {
       setErro(error.message || 'Erro ao carregar lotes');
@@ -44,63 +47,106 @@ export default function TelaLotes() {
       lote.nome_morador || null,
       lote.ramal || null,
       lote.latitude || null,
-      lote.longitude || null
+      lote.longitude || null,
     );
     navigate('/visitante/navegacao');
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loading />
-      </div>
-    );
-  }
-
-  if (erro) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6">
-        <ErrorMessage message={erro} onRetry={carregarLotes} />
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-md mx-auto">
-        <button
-          onClick={() => navigate(-1)}
-          className="text-[#0B4F3A] mb-4 hover:underline"
-        >
-          ← Voltar
-        </button>
+    <VisitanteLayout
+      showBack
+      titulo={`Quadra ${quadraNome}`}
+      subtitulo="Selecione o número do lote de destino"
+    >
+      <div className="p-4 max-w-sm mx-auto">
+        {loading ? (
+          <div className="flex justify-center items-center py-16">
+            <Loading />
+          </div>
+        ) : erro ? (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col items-center gap-4 py-12 text-center"
+          >
+            <div className="w-14 h-14 rounded-2xl bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
+              <AlertCircle size={24} className="text-red-600 dark:text-red-400" />
+            </div>
+            <p className="font-semibold text-gray-800 dark:text-gray-200">{erro}</p>
+            <Button variant="secondary" size="sm" leftIcon={<RotateCcw size={13} />} onClick={carregarLotes}>
+              Tentar novamente
+            </Button>
+          </motion.div>
+        ) : (
+          <motion.div
+            className="py-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+          >
+            {/* Legenda */}
+            <div className="flex items-center gap-4 mb-4 px-1">
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded-full bg-[#0B4F3A] dark:bg-[#28b88d]" />
+                <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">Com morador</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded-full bg-gray-200 dark:bg-gray-700" />
+                <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">Vazio</span>
+              </div>
+            </div>
 
-        <h1 className="text-2xl mb-2 text-center">Quadra {quadraNome}</h1>
-        <p className="text-sm text-gray-600 text-center mb-6">
-          Selecione o número do lote
-        </p>
+            {/* Grid de lotes */}
+            <div className="grid grid-cols-3 gap-2.5">
+              {lotes.map((lote, i) => {
+                const temMorador = Boolean(lote.nome_morador);
+                return (
+                  <motion.button
+                    key={lote.id}
+                    onClick={() => handleSelecionarLote(lote)}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: i * 0.03 }}
+                    className={`
+                      relative flex flex-col items-center justify-center rounded-2xl border-2
+                      min-h-[76px] py-2.5 px-1 gap-1
+                      active:scale-95 transition-all duration-150
+                      ${temMorador
+                        ? 'border-[#0B4F3A]/30 dark:border-[#28b88d]/30 bg-[#0B4F3A]/5 dark:bg-[#28b88d]/5 hover:border-[#0B4F3A]/60 dark:hover:border-[#28b88d]/60 hover:bg-[#0B4F3A]/10 dark:hover:bg-[#28b88d]/10'
+                        : 'border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-gray-300 dark:hover:border-gray-700'
+                      }
+                    `}
+                  >
+                    <span className={`text-lg font-bold leading-none ${
+                      temMorador
+                        ? 'text-[#0B4F3A] dark:text-[#28b88d]'
+                        : 'text-gray-700 dark:text-gray-300'
+                    }`}>
+                      {lote.numero}
+                    </span>
 
-        <div className="grid grid-cols-4 gap-3">
-          {lotes.map((lote) => (
-            <button
-              key={lote.id}
-              onClick={() => handleSelecionarLote(lote)}
-              className={`aspect-square rounded-lg border-2 flex flex-col items-center justify-center hover:shadow-md transition-all min-h-[64px] ${
-                lote.nome_morador
-                  ? 'border-[#0B4F3A] bg-green-50 hover:bg-green-100'
-                  : 'border-gray-300 bg-white hover:bg-gray-50'
-              }`}
-            >
-              <span className="text-xl">{lote.numero}</span>
-              {lote.nome_morador && (
-                <span className="text-xs text-gray-600 mt-1 text-center px-1">
-                  {lote.nome_morador.split(' ')[0]}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
+                    {temMorador ? (
+                      <>
+                        <div className="flex items-center gap-0.5">
+                          <User size={9} className="text-[#0B4F3A]/60 dark:text-[#28b88d]/60" />
+                          <span className="text-[9px] text-[#0B4F3A]/70 dark:text-[#28b88d]/70 font-semibold truncate max-w-[56px]">
+                            {lote.nome_morador!.split(' ')[0]}
+                          </span>
+                        </div>
+                        <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[#0B4F3A] dark:bg-[#28b88d]" />
+                      </>
+                    ) : (
+                      <span className="text-[9px] text-gray-400 dark:text-gray-600 font-medium">
+                        Vazio
+                      </span>
+                    )}
+                  </motion.button>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
       </div>
-    </div>
+    </VisitanteLayout>
   );
 }

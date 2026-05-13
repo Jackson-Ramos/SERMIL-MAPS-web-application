@@ -1,4 +1,4 @@
-export function calcularPermanencia(entradaISO: string): string {
+export function calcularPermanencia(entradaISO: string | null): string {
   if (!entradaISO) return '0 min';
 
   const entrada = new Date(entradaISO);
@@ -20,8 +20,8 @@ export function calcularPermanencia(entradaISO: string): string {
   return `${horas}h ${minutosRestantes}min`;
 }
 
-export function formatarHora(isoString: string): string {
-  if (!isoString) return '';
+export function formatarHora(isoString: string | null): string {
+  if (!isoString) return '—';
 
   const data = new Date(isoString);
   const horas = String(data.getHours()).padStart(2, '0');

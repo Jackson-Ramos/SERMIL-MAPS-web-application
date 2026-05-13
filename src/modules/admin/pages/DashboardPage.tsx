@@ -1,262 +1,482 @@
 import { useEffect, useState } from 'react';
-import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import Card from '../../../shared/components/Card';
-import Loading from '../../../shared/components/Loading';
+import {
+  BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
+import { motion } from 'motion/react';
+import {
+  Activity, Users, Clock, Building2,
+  MapPin, Navigation, TrendingUp,
+} from 'lucide-react';
+
+import { Card, Badge, EmptyState, Loading, PageHeader } from '../../../shared/components';
 import useVisitasStore from '../../../shared/store/visitasStore';
 import { getHistoricoVisitas } from '../../../shared/services/visitaService';
 import { calcularPermanencia, formatarHora } from '../../../shared/utils/tempo';
 import { ocultarCPF } from '../../../shared/utils/cpf';
 
-const COLORS = ['#0B4F3A', '#4CAF50', '#8BC34A'];
+// ─── Palette ──────────────────────────────────────────────────────────────────
+const CHART_COLORS = ['#0B4F3A', '#28b88d', '#4ade80', '#86efac'];
 
+// ─── Custom chart tooltip ─────────────────────────────────────────────────────
+function ChartTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl shadow-lg px-3 py-2 text-xs">
+      {label && <p className="font-semibold text-gray-500 dark:text-gray-400 mb-1">{label}</p>}
+      {payload.map((p: any, i: number) => (
+        <p key={i} className="font-bold" style={{ color: p.fill || p.color }}>
+          {p.value} {p.name || 'visitas'}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+// ─── Metric card ─────────────────────────────────────────────────────────────
+interface MetricCardProps {
+  label: string;
+  value: number | string;
+  icon: React.ReactNode;
+  color: 'brand' | 'blue' | 'red' | 'emerald';
+  delay?: number;
+  live?: boolean;
+}
+
+const colorMap = {
+  brand:   { icon: 'bg-[#0B4F3A]/10 text-[#0B4F3A] dark:bg-[#28b88d]/10 dark:text-[#28b88d]', value: 'text-[#0B4F3A] dark:text-[#28b88d]' },
+  blue:    { icon: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400',           value: 'text-blue-600 dark:text-blue-400' },
+  red:     { icon: 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400',               value: 'text-red-600 dark:text-red-400' },
+  emerald: { icon: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400', value: 'text-emerald-600 dark:text-emerald-400' },
+};
+
+function MetricCard({ label, value, icon, color, delay = 0, live = false }: MetricCardProps) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: 'easeOut', delay }}
+    >
+      <Card className="p-5 hover:shadow-md transition-shadow duration-300">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 mb-3">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 truncate">
+                {label}
+              </p>
+              {live && (
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse flex-shrink-0" />
+              )}
+            </div>
+            <p className={`text-3xl font-black tabular-nums leading-none ${colorMap[color].value}`}>
+              {value}
+            </p>
+          </div>
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${colorMap[color].icon}`}>
+            {icon}
+          </div>
+        </div>
+      </Card>
+    </motion.div>
+  );
+}
+
+// ─── Duration cell ─────────────────────────────────────────────────────────
+function DurationCell({ entrada }: { entrada: string | null }) {
+  const text = calcularPermanencia(entrada);
+  const mins = entrada ? Math.floor((Date.now() - new Date(entrada).getTime()) / 60000) : 0;
+  const color =
+    mins < 30  ? 'text-green-600 dark:text-green-400' :
+    mins < 60  ? 'text-amber-600 dark:text-amber-400' :
+                 'text-red-600 dark:text-red-400';
+  return <span className={`font-semibold tabular-nums ${color}`}>{text}</span>;
+}
+
+// ─── App label map ──────────────────────────────────────────────────────────
+const APP_LABELS: Record<string, string> = {
+  interno: 'Mapa Interno',
+  gmaps:   'Google Maps',
+  waze:    'Waze',
+};
+
+// ─── Page ──────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const { visitasAtivas, loading, startPolling, stopPolling } = useVisitasStore();
+
   const [metricas, setMetricas] = useState({
     visitasAtivas: 0,
-    visitasHoje: 0,
-    visitasExpiradas: 0,
-    lotesCadastrados: 0,
+    visitasHoje:   0,
+    expiradas:     0,
+    lotesAtivos:   150,
   });
-  const [dadosQuadras, setDadosQuadras] = useState<{quadra: string, visitas: number}[]>([]);
-  const [dadosApps, setDadosApps] = useState<{name: string, value: number}[]>([]);
+  const [dadosQuadras, setDadosQuadras] = useState<{ quadra: string; visitas: number }[]>([]);
+  const [dadosApps,   setDadosApps]    = useState<{ name: string; value: number }[]>([]);
 
   useEffect(() => {
     const condId = Number(import.meta.env.VITE_COND_ID) || 1;
-    startPolling(condId, 30000);
-
-    return () => {
-      stopPolling();
-    };
+    startPolling(condId, 30_000);
+    return () => stopPolling();
   }, []);
 
   useEffect(() => {
-    const fetchHistorico = async () => {
+    const fetch = async () => {
       try {
         const condId = Number(import.meta.env.VITE_COND_ID) || 1;
-        const historicoData = await getHistoricoVisitas(condId);
-        
+        const historico = await getHistoricoVisitas(condId);
         const hoje = new Date().toISOString().split('T')[0];
-        const visitasDeHoje = historicoData.filter(v => v.horario_entrada.startsWith(hoje));
+        const deHoje = historico.filter(v => v.horario_entrada?.startsWith(hoje));
 
         setMetricas({
           visitasAtivas: visitasAtivas.length,
-          visitasHoje: visitasDeHoje.length > 0 ? visitasDeHoje.length : visitasAtivas.length,
-          visitasExpiradas: visitasDeHoje.filter((v) => v.status === 'expirada').length,
-          lotesCadastrados: 150,
+          visitasHoje:   deHoje.length || visitasAtivas.length,
+          expiradas:     deHoje.filter(v => v.status === 'expirada').length,
+          lotesAtivos:   150,
         });
-      } catch (error) {
-        console.error(error);
-        setMetricas({
-          visitasAtivas: visitasAtivas.length,
-          visitasHoje: visitasAtivas.length,
-          visitasExpiradas: 0,
-          lotesCadastrados: 150,
-        });
+      } catch {
+        setMetricas(m => ({ ...m, visitasAtivas: visitasAtivas.length }));
       }
     };
+    fetch();
 
-    fetchHistorico();
-
-    const quadrasCount = visitasAtivas.reduce((acc, v) => {
+    // ── Chart data from active visits ──
+    const byQuadra = visitasAtivas.reduce((acc, v) => {
       acc[v.quadra] = (acc[v.quadra] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
-    
-    setDadosQuadras(
-      Object.entries(quadrasCount).map(([quadra, visitas]) => ({ quadra, visitas }))
-    );
+    setDadosQuadras(Object.entries(byQuadra).map(([quadra, visitas]) => ({ quadra, visitas })));
 
-    const appsCount = visitasAtivas.reduce((acc, v) => {
-      const app = v.app_navegacao === 'gmaps' ? 'Google Maps' : v.app_navegacao === 'waze' ? 'Waze' : 'Mapa Interno';
-      acc[app] = (acc[app] || 0) + 1;
+    const byApp = visitasAtivas.reduce((acc, v) => {
+      const name = APP_LABELS[v.app_navegacao] ?? v.app_navegacao;
+      acc[name] = (acc[name] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
-
-    setDadosApps(
-      Object.entries(appsCount).map(([name, value]) => ({ name, value }))
-    );
+    setDadosApps(Object.entries(byApp).map(([name, value]) => ({ name, value })));
   }, [visitasAtivas]);
 
   if (loading && visitasAtivas.length === 0) {
-    return <Loading />;
+    return <Loading label="Carregando dashboard..." />;
   }
 
   return (
-    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {/* Header Sec */}
-      <header className="flex justify-between items-center mb-2">
-        <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-gray-900 dark:text-white">Dashboard</h1>
-          <p className="text-[11px] font-medium text-gray-500 mt-0.5">Visão Geral do Perímetro e Acessos</p>
-        </div>
-        <div className="flex items-center gap-2 bg-white dark:bg-gray-800 px-3 py-1.5 rounded-full border border-gray-200 dark:border-gray-700 shadow-sm">
-          <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
-          <span className="text-[10px] font-semibold tracking-wide text-gray-800 dark:text-gray-200">Sistema Online</span>
-        </div>
-      </header>
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
-      {/* Top Metrics Row - Compact */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Active Metric */}
-        <Card className="!rounded-2xl border-0 bg-gradient-to-br from-[#0B4F3A] to-[#073627] shadow-lg shadow-[#0B4F3A]/20 text-white p-4 relative overflow-hidden group hover:scale-[1.02] transition-transform duration-300 flex items-center justify-between">
-          <div className="absolute top-0 right-0 -mt-8 -mr-8 w-24 h-24 bg-green-500/10 blur-2xl rounded-full"></div>
-          
-          <div className="relative z-10">
-            <p className="text-[10px] font-semibold text-green-100/80 tracking-wider mb-1">VISITAS ATIVAS</p>
-            <p className="text-4xl font-black tracking-tight leading-none text-white drop-shadow-md">{metricas.visitasAtivas}</p>
+      {/* ── Header ──────────────────────────────────────────────────────── */}
+      <PageHeader
+        title="Dashboard"
+        subtitle="Monitoramento em tempo real do perímetro"
+        action={
+          <div className="flex items-center gap-2 bg-white dark:bg-gray-800 px-3 py-1.5 rounded-full border border-gray-200 dark:border-gray-700 shadow-sm">
+            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_6px_rgba(34,197,94,0.7)]" />
+            <span className="text-[11px] font-semibold tracking-wide text-gray-700 dark:text-gray-300">
+              Sistema Online
+            </span>
           </div>
-          
-          <div className="relative z-10 w-10 h-10 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/10">
-             <span className="w-2.5 h-2.5 bg-green-400 rounded-full animate-pulse shadow-[0_0_10px_rgba(74,222,128,0.8)]"></span>
-          </div>
-        </Card>
+        }
+      />
 
-        {/* Secondary Metrics */}
-        <Card className="!rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-md dark:bg-gray-800/80 backdrop-blur-sm transition-all duration-300 p-4 flex items-center gap-4 group">
-          <div className="w-10 h-10 shrink-0 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 dark:text-blue-400">
-             <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+      {/* ── Metric cards ────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        {/* Hero card — Visitas Ativas */}
+        <motion.div
+          className="sm:col-span-2 xl:col-span-1"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: 'easeOut' }}
+        >
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0B4F3A] to-[#073627] p-5 h-full min-h-[100px] shadow-lg shadow-[#0B4F3A]/20">
+            {/* dot grid */}
+            <div
+              className="absolute inset-0 opacity-[0.07]"
+              style={{
+                backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.5) 1px, transparent 0)',
+                backgroundSize: '20px 20px',
+              }}
+            />
+            {/* deco circle */}
+            <div className="absolute -bottom-6 -right-6 w-28 h-28 rounded-full bg-white/5" />
+
+            <div className="relative z-10 flex items-start justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-1.5 mb-3">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-green-200/70">
+                    Visitas Ativas
+                  </p>
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                </div>
+                <p className="text-4xl font-black text-white tabular-nums leading-none drop-shadow-md">
+                  {metricas.visitasAtivas}
+                </p>
+                <p className="text-green-200/50 text-xs mt-2">em tempo real</p>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10 flex items-center justify-center">
+                <Activity className="w-5 h-5 text-[#28b88d]" />
+              </div>
+            </div>
           </div>
-          <div>
-             <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Visitas Hoje</p>
-             <p className="text-2xl font-extrabold text-gray-900 dark:text-white mt-0.5">{metricas.visitasHoje}</p>
-          </div>
-        </Card>
-        
-        <Card className="!rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-md dark:bg-gray-800/80 backdrop-blur-sm transition-all duration-300 p-4 flex items-center gap-4 group">
-          <div className="w-10 h-10 shrink-0 rounded-xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center text-red-600 dark:text-red-400">
-             <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-          </div>
-          <div>
-             <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Expiradas</p>
-             <p className="text-2xl font-extrabold text-red-600 mt-0.5">{metricas.visitasExpiradas}</p>
-          </div>
-        </Card>
-        
-        <Card className="!rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-md dark:bg-gray-800/80 backdrop-blur-sm transition-all duration-300 p-4 flex items-center gap-4 group">
-          <div className="w-10 h-10 shrink-0 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-             <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
-          </div>
-          <div>
-             <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Lotes Ativos</p>
-             <p className="text-2xl font-extrabold text-gray-900 dark:text-white mt-0.5">{metricas.lotesCadastrados}</p>
-          </div>
-        </Card>
+        </motion.div>
+
+        <MetricCard
+          label="Visitas Hoje"
+          value={metricas.visitasHoje}
+          icon={<Users className="w-5 h-5" />}
+          color="blue"
+          delay={0.05}
+        />
+        <MetricCard
+          label="Expiradas"
+          value={metricas.expiradas}
+          icon={<Clock className="w-5 h-5" />}
+          color="red"
+          delay={0.1}
+        />
+        <MetricCard
+          label="Lotes Ativos"
+          value={metricas.lotesAtivos}
+          icon={<Building2 className="w-5 h-5" />}
+          color="emerald"
+          delay={0.15}
+        />
       </div>
 
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card className="!rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm !p-0 overflow-hidden flex flex-col">
-          <div className="py-2.5 px-4 border-b border-gray-50 dark:border-gray-800 bg-white dark:bg-gray-800/50">
-            <h3 className="text-[11px] font-bold uppercase text-gray-700 dark:text-gray-200 tracking-wide">Densidade por Quadra</h3>
-          </div>
-          <div className="p-2 flex-1 bg-gray-50/30 dark:bg-gray-900/10">
-            <ResponsiveContainer width="100%" height={160}>
-              <BarChart data={dadosQuadras} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} opacity={0.5} />
-                <XAxis dataKey="quadra" tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: '#6b7280' }} dy={4} />
-                <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: '#6b7280' }} />
-                <Tooltip 
-                  cursor={{ fill: 'rgba(11, 79, 58, 0.05)', rx: 6 }} 
-                  contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', fontWeight: 600, fontSize: 11, padding: '4px 8px' }} 
-                />
-                <Bar dataKey="visitas" fill="#0B4F3A" radius={[4, 4, 4, 4]} barSize={20}>
-                  {dadosQuadras.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
+      {/* ── Charts ──────────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
 
-        <Card className="!rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm !p-0 overflow-hidden flex flex-col">
-          <div className="py-2.5 px-4 border-b border-gray-50 dark:border-gray-800 bg-white dark:bg-gray-800/50">
-            <h3 className="text-[11px] font-bold uppercase text-gray-700 dark:text-gray-200 tracking-wide">Distribuição de Apps</h3>
-          </div>
-          <div className="p-2 flex-1 flex items-center justify-center bg-gray-50/30 dark:bg-gray-900/10">
-            <ResponsiveContainer width="100%" height={160}>
-              <PieChart>
-                <Pie
-                  data={dadosApps}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={(entry) => `${entry.name} (${entry.value})`}
-                  outerRadius={60}
-                  innerRadius={35}
-                  paddingAngle={4}
-                  dataKey="value"
-                  stroke="none"
-                  cornerRadius={4}
-                >
-                  {dadosApps.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', fontWeight: 600, fontSize: 11, padding: '4px 8px' }} 
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-      </div>
+        {/* Bar chart — Densidade por Quadra */}
+        <motion.div
+          className="lg:col-span-3"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: 'easeOut', delay: 0.2 }}
+        >
+          <Card className="overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                  Densidade por Quadra
+                </p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                  Visitas ativas por setor
+                </p>
+              </div>
+              <div className="w-8 h-8 rounded-xl bg-[#0B4F3A]/8 dark:bg-[#28b88d]/8 flex items-center justify-center">
+                <TrendingUp className="w-4 h-4 text-[#0B4F3A] dark:text-[#28b88d]" />
+              </div>
+            </div>
 
-      {/* Realtime Table Section */}
-      <Card className="!rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm !p-0 overflow-hidden">
-        <div className="py-3 px-4 border-b border-gray-50 dark:border-gray-800 bg-white dark:bg-gray-800/80 flex justify-between items-center">
-          <h3 className="text-[11px] font-bold uppercase text-gray-800 dark:text-gray-200 tracking-wide flex items-center gap-2">
-            Atividade em Tempo Real
-          </h3>
-        </div>
-        
-        <div className="overflow-x-auto bg-white dark:bg-gray-900">
-          <table className="w-full text-left border-collapse whitespace-nowrap">
-            <thead>
-              <tr className="bg-gray-50/50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800 text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                <th className="py-2 px-4">Identificação</th>
-                <th className="py-2 px-4">Destino</th>
-                <th className="py-2 px-4">Entrada</th>
-                <th className="py-2 px-4">Duração</th>
-                <th className="py-2 px-4">Status</th>
-              </tr>
-            </thead>
-            <tbody className="text-[11px] text-gray-700 dark:text-gray-300">
-              {visitasAtivas.length === 0 ? (
-                 <tr>
-                   <td colSpan={5} className="py-6 text-center text-gray-400 dark:text-gray-500 font-medium text-[11px]">
-                     Nenhuma atividade detectada no perímetro.
-                   </td>
-                 </tr>
+            <div className="p-4">
+              {dadosQuadras.length === 0 ? (
+                <EmptyState
+                  icon={<TrendingUp className="w-5 h-5" />}
+                  title="Sem dados de quadra"
+                  description="Os dados aparecerão quando houver visitas ativas."
+                  className="py-10"
+                />
               ) : (
-                visitasAtivas.map((visita) => (
-                  <tr key={visita.id} className="border-b border-gray-50 dark:border-gray-800/60 hover:bg-gray-50/80 dark:hover:bg-gray-800/40 transition-colors">
-                    <td className="py-2 px-4 font-medium text-gray-900 dark:text-gray-100">{ocultarCPF(visita.cpf)}</td>
-                    <td className="py-2 px-4">
-                      <span className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-full font-medium">
-                        Q.{visita.quadra} - L.{visita.lote}
-                      </span>
-                    </td>
-                    <td className="py-2 px-4">{formatarHora(visita.horario_entrada)}</td>
-                    <td className="py-2 px-4 font-medium">{calcularPermanencia(visita.horario_entrada)}</td>
-                    <td className="py-2 px-4 flex items-center gap-1.5">
-                      <span className={`w-1.5 h-1.5 ${visita.status === 'ativa' ? 'bg-green-500 animate-pulse' : 'bg-red-500'} rounded-full shadow-sm`}></span>
-                      <span className={`px-2 py-0.5 rounded-full font-bold tracking-wide ${
-                          visita.status === 'ativa'
-                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                            : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                        }`}
-                      >
-                        {visita.status === 'ativa' ? 'ATIVA' : 'EXPIRADA'}
-                      </span>
-                    </td>
-                  </tr>
-                ))
+                <ResponsiveContainer width="100%" height={180}>
+                  <BarChart data={dadosQuadras} margin={{ top: 8, right: 8, left: -28, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="opacity-5" vertical={false} />
+                    <XAxis
+                      dataKey="quadra"
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fontSize: 10, fill: 'currentColor' }}
+                      className="text-gray-500"
+                      dy={4}
+                    />
+                    <YAxis
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fontSize: 10, fill: 'currentColor' }}
+                      className="text-gray-500"
+                      allowDecimals={false}
+                    />
+                    <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(11,79,58,0.05)', radius: 8 }} />
+                    <Bar dataKey="visitas" radius={[6, 6, 4, 4]} maxBarSize={36}>
+                      {dadosQuadras.map((_, i) => (
+                        <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
               )}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+            </div>
+          </Card>
+        </motion.div>
+
+        {/* Donut chart — Distribuição de Apps */}
+        <motion.div
+          className="lg:col-span-2"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: 'easeOut', delay: 0.25 }}
+        >
+          <Card className="overflow-hidden h-full">
+            <div className="px-5 py-3.5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                  Apps Utilizados
+                </p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                  Modo de navegação
+                </p>
+              </div>
+              <div className="w-8 h-8 rounded-xl bg-[#0B4F3A]/8 dark:bg-[#28b88d]/8 flex items-center justify-center">
+                <Navigation className="w-4 h-4 text-[#0B4F3A] dark:text-[#28b88d]" />
+              </div>
+            </div>
+
+            <div className="p-4">
+              {dadosApps.length === 0 ? (
+                <EmptyState
+                  icon={<Navigation className="w-5 h-5" />}
+                  title="Sem dados"
+                  className="py-10"
+                />
+              ) : (
+                <>
+                  <ResponsiveContainer width="100%" height={140}>
+                    <PieChart>
+                      <Pie
+                        data={dadosApps}
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={58}
+                        innerRadius={34}
+                        paddingAngle={3}
+                        dataKey="value"
+                        stroke="none"
+                        cornerRadius={4}
+                      >
+                        {dadosApps.map((_, i) => (
+                          <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip content={<ChartTooltip />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+
+                  {/* Legend */}
+                  <div className="flex flex-col gap-1.5 mt-2">
+                    {dadosApps.map((item, i) => (
+                      <div key={item.name} className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }}
+                          />
+                          <span className="text-gray-600 dark:text-gray-400 truncate">{item.name}</span>
+                        </div>
+                        <span className="font-bold text-gray-800 dark:text-gray-200 ml-2">{item.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </Card>
+        </motion.div>
+      </div>
+
+      {/* ── Realtime activity table ──────────────────────────────────────── */}
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: 'easeOut', delay: 0.3 }}
+      >
+        <Card className="overflow-hidden">
+          {/* Table header */}
+          <div className="px-5 py-3.5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-[#0B4F3A]/8 dark:bg-[#28b88d]/8 flex items-center justify-center">
+                <MapPin className="w-4 h-4 text-[#0B4F3A] dark:text-[#28b88d]" />
+              </div>
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-gray-700 dark:text-gray-200">
+                  Atividade em Tempo Real
+                </p>
+                <p className="text-xs text-gray-400 dark:text-gray-500">
+                  Atualiza automaticamente a cada 30s
+                </p>
+              </div>
+            </div>
+            {visitasAtivas.length > 0 && (
+              <Badge variant="ativa" dot>
+                {visitasAtivas.length} ativa{visitasAtivas.length > 1 ? 's' : ''}
+              </Badge>
+            )}
+          </div>
+
+          {/* Table */}
+          {visitasAtivas.length === 0 ? (
+            <EmptyState
+              icon={<Activity className="w-5 h-5" />}
+              title="Nenhuma atividade detectada"
+              description="Quando houver visitantes no perímetro, eles aparecerão aqui."
+            />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-gray-100 dark:border-gray-800">
+                    {['Identificação', 'Destino', 'Entrada', 'Duração', 'App', 'Status'].map(h => (
+                      <th
+                        key={h}
+                        className="px-5 py-2.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 whitespace-nowrap"
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {visitasAtivas.map((visita, i) => (
+                    <motion.tr
+                      key={visita.id}
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.04 }}
+                      className="border-b border-gray-50 dark:border-gray-800/60 hover:bg-gray-50/60 dark:hover:bg-gray-800/30 transition-colors"
+                    >
+                      <td className="px-5 py-3 whitespace-nowrap">
+                        <span className="font-mono text-xs font-semibold text-gray-700 dark:text-gray-300">
+                          {ocultarCPF(visita.cpf)}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3 whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2.5 py-1 rounded-full text-[11px] font-semibold">
+                          <MapPin className="w-3 h-3 opacity-60" />
+                          Q.{visita.quadra} — L.{visita.lote}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400 tabular-nums">
+                        {formatarHora(visita.horario_entrada)}
+                      </td>
+                      <td className="px-5 py-3 whitespace-nowrap text-xs">
+                        <DurationCell entrada={visita.horario_entrada} />
+                      </td>
+                      <td className="px-5 py-3 whitespace-nowrap">
+                        <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                          {APP_LABELS[visita.app_navegacao] ?? visita.app_navegacao}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3 whitespace-nowrap">
+                        <Badge
+                          variant={visita.status as 'ativa' | 'encerrada' | 'expirada'}
+                          dot={visita.status === 'ativa'}
+                        >
+                          {visita.status}
+                        </Badge>
+                      </td>
+                    </motion.tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+      </motion.div>
+
     </div>
   );
 }

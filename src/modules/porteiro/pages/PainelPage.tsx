@@ -4,11 +4,33 @@ import { encerrarVisita } from '../../../shared/services/visitaService';
 import Card from '../../../shared/components/Card';
 import Loading from '../../../shared/components/Loading';
 import Button from '../../../shared/components/Button';
-import { calcularPermanencia, formatarHora } from '../../../shared/utils/tempo';
-import { ocultarCPF } from '../../../shared/utils/cpf';
+import Badge, { BadgeVariant } from '../../../shared/components/Badge';
+import EmptyState from '../../../shared/components/EmptyState';
 import Modal from '../../../shared/components/Modal';
 import Input from '../../../shared/components/Input';
+import PageHeader from '../../../shared/components/PageHeader';
+import { calcularPermanencia, formatarHora } from '../../../shared/utils/tempo';
+import { ocultarCPF } from '../../../shared/utils/cpf';
 import { toast } from 'sonner';
+import {
+  Users,
+  AlertTriangle,
+  StickyNote,
+  RefreshCw,
+  MapPin,
+  Clock,
+  Hash,
+  Timer,
+  LogOut,
+  MessageSquarePlus,
+} from 'lucide-react';
+
+interface StatusInfo {
+  variant: BadgeVariant;
+  label: string;
+  ring: string;
+  bar: string;
+}
 
 export default function PainelPage() {
   const { visitasAtivas, loading, startPolling, stopPolling, fetchVisitasAtivas } = useVisitasStore();
@@ -16,6 +38,7 @@ export default function PainelPage() {
   const [visitaParaEncerrar, setVisitaParaEncerrar] = useState<number | null>(null);
   const [visitaParaObs, setVisitaParaObs] = useState<number | null>(null);
   const [obsInput, setObsInput] = useState('');
+  const [encerrando, setEncerrando] = useState(false);
 
   useEffect(() => {
     const condId = Number(import.meta.env.VITE_COND_ID) || 1;
@@ -25,6 +48,7 @@ export default function PainelPage() {
 
   const handleConfirmarEncerrar = async () => {
     if (!visitaParaEncerrar) return;
+    setEncerrando(true);
     try {
       await encerrarVisita(visitaParaEncerrar);
       const condId = Number(import.meta.env.VITE_COND_ID) || 1;
@@ -34,6 +58,7 @@ export default function PainelPage() {
       console.error('Erro ao encerrar visita:', error);
       toast.error('Erro ao encerrar visita.');
     } finally {
+      setEncerrando(false);
       setVisitaParaEncerrar(null);
     }
   };
@@ -46,14 +71,18 @@ export default function PainelPage() {
     setObsInput('');
   };
 
-  const getStatusInfo = (horarioEntrada: string, tempoMaximo: number = 60) => {
-    const entrada = new Date(horarioEntrada);
+  const getStatusInfo = (horarioEntrada: string | null, tempoMaximo: number = 60): StatusInfo => {
+    const entrada = new Date(horarioEntrada || Date.now());
     const agora = new Date();
     const minutos = Math.floor((agora.getTime() - entrada.getTime()) / 60000);
 
-    if (minutos > tempoMaximo) return { border: 'border-red-400', dot: 'bg-red-500', badge: 'bg-red-100 text-red-700', label: 'Expirada' };
-    if (minutos > 30) return { border: 'border-amber-400', dot: 'bg-amber-500 animate-pulse', badge: 'bg-amber-100 text-amber-700', label: 'Atenção' };
-    return { border: 'border-green-400', dot: 'bg-green-500 animate-pulse', badge: 'bg-green-100 text-green-700', label: 'Normal' };
+    if (minutos > tempoMaximo) {
+      return { variant: 'expirada', label: 'Expirada', ring: 'ring-red-200 dark:ring-red-900/40', bar: 'bg-red-500' };
+    }
+    if (minutos > 30) {
+      return { variant: 'warning', label: 'Atenção', ring: 'ring-amber-200 dark:ring-amber-900/40', bar: 'bg-amber-500' };
+    }
+    return { variant: 'ativa', label: 'Normal', ring: 'ring-green-200 dark:ring-green-900/40', bar: 'bg-green-500' };
   };
 
   const visitasAtivasOnly = visitasAtivas.filter((v) => v.status === 'ativa');
@@ -61,140 +90,256 @@ export default function PainelPage() {
   if (loading && visitasAtivasOnly.length === 0) return <Loading />;
 
   return (
-    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {/* Header com contador */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="col-span-2 bg-gradient-to-br from-[#0B4F3A] to-[#073627] text-white p-5 rounded-2xl shadow-lg flex items-center justify-between">
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-widest text-green-300/80">Visitantes Ativos</p>
-            <p className="text-5xl font-black mt-1 tabular-nums">{visitasAtivasOnly.length}</p>
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <PageHeader
+        title="Painel de Portaria"
+        subtitle="Visitantes ativos no condomínio em tempo real"
+      />
+
+      {/* Hero metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Visitor count card */}
+        <Card variant="elevated" className="md:col-span-2 !p-0 overflow-hidden bg-gradient-to-br from-[#0B4F3A] via-[#0a3f2f] to-[#073627] !border-0 shadow-lg shadow-[#0B4F3A]/20 relative">
+          <div
+            className="absolute inset-0 pointer-events-none opacity-[0.07]"
+            style={{
+              backgroundImage:
+                'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.6) 1px, transparent 0)',
+              backgroundSize: '20px 20px',
+            }}
+          />
+          <div className="absolute -bottom-8 -right-8 w-40 h-40 rounded-full bg-[#28b88d]/10 pointer-events-none" />
+          <div className="relative z-10 flex items-center justify-between p-5">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[#28b88d]">
+                Visitantes Ativos
+              </p>
+              <p className="text-5xl font-black tabular-nums text-white mt-1 leading-none">
+                {visitasAtivasOnly.length}
+              </p>
+              <p className="text-[11px] font-medium text-white/60 mt-2">
+                {visitasAtivasOnly.length === 1
+                  ? 'pessoa dentro do condomínio agora'
+                  : 'pessoas dentro do condomínio agora'}
+              </p>
+            </div>
+            <div className="w-16 h-16 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center backdrop-blur-sm">
+              <Users size={28} className="text-[#28b88d]" />
+            </div>
           </div>
-          <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-green-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+        </Card>
+
+        {/* Sync card */}
+        <Card variant="default" className="!p-5 flex flex-col justify-center">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">
+              Sincronização
+            </p>
+            <RefreshCw size={14} className="text-[#0B4F3A] dark:text-[#28b88d] animate-[spin_8s_linear_infinite]" />
           </div>
-        </div>
-        <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-5 flex flex-col justify-center shadow-sm">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Atualização</p>
-          <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mt-1">A cada 15 segundos</p>
-          <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse mt-2"></span>
-        </div>
+          <p className="text-sm font-bold text-gray-900 dark:text-white mt-2">A cada 15 segundos</p>
+          <div className="flex items-center gap-1.5 mt-2">
+            <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+            <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400">
+              Conectado em tempo real
+            </p>
+          </div>
+        </Card>
       </div>
 
-      {/* Lista de Visitas */}
-      <div className="space-y-3">
-        {visitasAtivasOnly.length === 0 ? (
-          <Card className="!rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
-            <div className="py-12 text-center text-gray-400 dark:text-gray-500 font-medium text-sm">
-              Nenhuma visita ativa no momento.
-            </div>
-          </Card>
-        ) : (
-          visitasAtivasOnly.map((visita) => {
+      {/* Visit list */}
+      {visitasAtivasOnly.length === 0 ? (
+        <Card>
+          <EmptyState
+            icon={<Users size={22} />}
+            title="Nenhuma visita ativa"
+            description="Quando um visitante for registrado, ele aparecerá aqui automaticamente."
+          />
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {visitasAtivasOnly.map((visita) => {
             const status = getStatusInfo(visita.horario_entrada);
+            const obs = observacao[visita.id] || visita.observacoes;
             return (
               <Card
                 key={visita.id}
-                className={`!rounded-2xl border-2 ${status.border} shadow-sm !p-0 overflow-hidden`}
+                className={`!p-0 overflow-hidden ring-1 ${status.ring}`}
               >
-                <div className="p-4 flex justify-between items-start gap-4 bg-white dark:bg-gray-900">
-                  <div className="flex items-start gap-3 flex-1 min-w-0">
-                    <div className={`mt-1 w-2.5 h-2.5 rounded-full flex-shrink-0 ${status.dot}`}></div>
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap gap-2 mb-2">
-                        <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${status.badge}`}>
+                <div className="flex items-stretch">
+                  {/* Side accent bar */}
+                  <div className={`w-1 ${status.bar} flex-shrink-0`} />
+
+                  {/* Main content */}
+                  <div className="flex-1 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex-1 min-w-0 space-y-3">
+                      {/* Badges row */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant={status.variant} dot>
                           {status.label}
-                        </span>
-                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-                          #{visita.id}
-                        </span>
+                        </Badge>
+                        <Badge variant="neutral" className="!font-mono">
+                          <Hash size={9} />#{visita.id}
+                        </Badge>
                       </div>
-                      <div className="grid grid-cols-2 gap-x-6 gap-y-1">
-                        <div>
-                          <p className="text-[9px] font-bold uppercase text-gray-400 tracking-wider">CPF</p>
-                          <p className="text-[12px] font-bold text-gray-900 dark:text-white font-mono">{ocultarCPF(visita.cpf)}</p>
-                        </div>
-                        <div>
-                          <p className="text-[9px] font-bold uppercase text-gray-400 tracking-wider">Destino</p>
-                          <p className="text-[12px] font-bold text-gray-900 dark:text-white">Q.{visita.quadra} — L.{visita.lote}</p>
-                        </div>
-                        <div>
-                          <p className="text-[9px] font-bold uppercase text-gray-400 tracking-wider">Entrada</p>
-                          <p className="text-[12px] font-mono text-gray-700 dark:text-gray-300">{formatarHora(visita.horario_entrada)}</p>
-                        </div>
-                        <div>
-                          <p className="text-[9px] font-bold uppercase text-gray-400 tracking-wider">Permanência</p>
-                          <p className="text-[12px] font-bold text-gray-900 dark:text-white">{calcularPermanencia(visita.horario_entrada)}</p>
-                        </div>
+
+                      {/* Info grid */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-2">
+                        <InfoCell
+                          icon={<Hash size={11} />}
+                          label="CPF"
+                          value={ocultarCPF(visita.cpf)}
+                          mono
+                        />
+                        <InfoCell
+                          icon={<MapPin size={11} />}
+                          label="Destino"
+                          value={`Q.${visita.quadra} — L.${visita.lote}`}
+                        />
+                        <InfoCell
+                          icon={<Clock size={11} />}
+                          label="Entrada"
+                          value={formatarHora(visita.horario_entrada)}
+                          mono
+                        />
+                        <InfoCell
+                          icon={<Timer size={11} />}
+                          label="Permanência"
+                          value={calcularPermanencia(visita.horario_entrada)}
+                        />
                       </div>
-                      {(visita.observacoes || observacao[visita.id]) && (
-                        <p className="text-[11px] text-gray-500 mt-2 italic">
-                          📝 {observacao[visita.id] || visita.observacoes}
-                        </p>
+
+                      {/* Observation */}
+                      {obs && (
+                        <div className="flex items-start gap-2 px-3 py-2 rounded-xl bg-amber-50/70 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/20">
+                          <StickyNote size={12} className="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                          <p className="text-[11px] text-amber-800 dark:text-amber-200 italic leading-relaxed">
+                            {obs}
+                          </p>
+                        </div>
                       )}
                     </div>
-                  </div>
 
-                  <div className="flex flex-col gap-2 flex-shrink-0">
-                    <button
-                      onClick={() => setVisitaParaEncerrar(visita.id)}
-                      className="rounded-xl text-[11px] font-bold tracking-wide bg-red-500 hover:bg-red-600 text-white px-4 py-2 shadow-sm transition-colors"
-                    >
-                      Encerrar
-                    </button>
-                    <button
-                      onClick={() => { setVisitaParaObs(visita.id); setObsInput(observacao[visita.id] || ''); }}
-                      className="text-[11px] font-bold text-[#0B4F3A] dark:text-green-400 hover:underline text-center"
-                    >
-                      + Observação
-                    </button>
+                    {/* Actions */}
+                    <div className="flex sm:flex-col gap-2 sm:w-[140px] flex-shrink-0">
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        onClick={() => setVisitaParaEncerrar(visita.id)}
+                        className="flex-1 sm:flex-none"
+                      >
+                        <LogOut size={13} />
+                        Encerrar
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => {
+                          setVisitaParaObs(visita.id);
+                          setObsInput(observacao[visita.id] || visita.observacoes || '');
+                        }}
+                        className="flex-1 sm:flex-none"
+                      >
+                        <MessageSquarePlus size={13} />
+                        Observação
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </Card>
             );
-          })
-        )}
+          })}
+        </div>
+      )}
+
+      {/* Encerrar Modal */}
+      <Modal
+        isOpen={visitaParaEncerrar !== null}
+        onClose={() => setVisitaParaEncerrar(null)}
+        title="Encerrar visita?"
+        subtitle="Esta ação não pode ser desfeita."
+        size="sm"
+        footer={
+          <div className="flex gap-3">
+            <Button
+              variant="danger"
+              onClick={handleConfirmarEncerrar}
+              disabled={encerrando}
+              className="flex-1"
+            >
+              {encerrando ? 'Encerrando...' : 'Confirmar'}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => setVisitaParaEncerrar(null)}
+              disabled={encerrando}
+              className="flex-1"
+            >
+              Cancelar
+            </Button>
+          </div>
+        }
+      >
+        <div className="flex flex-col items-center text-center py-2">
+          <div className="w-14 h-14 rounded-2xl bg-red-100 dark:bg-red-900/20 flex items-center justify-center mb-3">
+            <AlertTriangle size={26} className="text-red-600 dark:text-red-400" />
+          </div>
+          <p className="text-sm text-gray-600 dark:text-gray-300 max-w-xs">
+            O horário de saída da visita será registrado no momento da confirmação.
+          </p>
+        </div>
+      </Modal>
+
+      {/* Observation Modal */}
+      <Modal
+        isOpen={visitaParaObs !== null}
+        onClose={() => setVisitaParaObs(null)}
+        title="Adicionar Observação"
+        subtitle="Detalhes adicionais sobre a visita"
+        size="md"
+        footer={
+          <div className="flex gap-3">
+            <Button onClick={handleSalvarObs} disabled={!obsInput.trim()} className="flex-1">
+              Salvar
+            </Button>
+            <Button variant="secondary" onClick={() => setVisitaParaObs(null)} className="flex-1">
+              Cancelar
+            </Button>
+          </div>
+        }
+      >
+        <Input
+          label="Observação"
+          value={obsInput}
+          onChange={(e) => setObsInput(e.target.value)}
+          placeholder="Ex: visitante chegou de bicicleta..."
+        />
+      </Modal>
+    </div>
+  );
+}
+
+interface InfoCellProps {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  mono?: boolean;
+}
+
+function InfoCell({ icon, label, value, mono }: InfoCellProps) {
+  return (
+    <div className="min-w-0">
+      <div className="flex items-center gap-1 text-gray-400 dark:text-gray-500 mb-0.5">
+        {icon}
+        <p className="text-[9px] font-bold uppercase tracking-wider">{label}</p>
       </div>
-
-      {/* Modal Encerrar */}
-      {visitaParaEncerrar !== null && (
-        <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-900 rounded-[24px] p-6 w-[380px] shadow-2xl border border-gray-100 dark:border-gray-800">
-            <div className="text-center mb-5">
-              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-              </div>
-              <h3 className="text-lg font-extrabold text-gray-900 dark:text-white">Encerrar Visita?</h3>
-              <p className="text-sm text-gray-500 mt-1">Esta ação não pode ser desfeita.</p>
-            </div>
-            <div className="flex gap-3">
-              <Button variant="secondary" onClick={() => setVisitaParaEncerrar(null)} className="flex-1 !rounded-xl py-2.5 border border-gray-200">Cancelar</Button>
-              <Button onClick={handleConfirmarEncerrar} className="flex-1 !rounded-xl py-2.5 bg-red-500 hover:bg-red-600 text-white font-bold shadow">Confirmar</Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Observação */}
-      {visitaParaObs !== null && (
-        <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-900 rounded-[24px] p-6 w-[420px] shadow-2xl border border-gray-100 dark:border-gray-800">
-            <div className="flex justify-between items-center mb-5 pb-3 border-b border-gray-50 dark:border-gray-800">
-              <h3 className="text-lg font-extrabold text-gray-900 dark:text-white">Adicionar Observação</h3>
-              <button onClick={() => setVisitaParaObs(null)} className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-50 hover:bg-gray-100 text-gray-500">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            </div>
-            <div className="space-y-1 mb-5">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 ml-1">Observação</label>
-              <Input value={obsInput} onChange={(e) => setObsInput(e.target.value)} placeholder="Digite os detalhes..." className="!text-sm !py-2.5 !rounded-xl !border-gray-200 shadow-sm" />
-            </div>
-            <div className="flex gap-3">
-              <Button variant="secondary" onClick={() => setVisitaParaObs(null)} className="flex-1 !rounded-xl py-2.5 border border-gray-200">Cancelar</Button>
-              <Button onClick={handleSalvarObs} className="flex-1 !rounded-xl py-2.5 bg-[#0B4F3A] hover:bg-[#073627] text-white font-bold shadow">Salvar</Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <p
+        className={`text-[12px] font-bold text-gray-900 dark:text-white truncate ${
+          mono ? 'font-mono' : ''
+        }`}
+      >
+        {value}
+      </p>
     </div>
   );
 }
