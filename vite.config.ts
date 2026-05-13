@@ -5,6 +5,9 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 
+import { cloudflare } from "@cloudflare/vite-plugin";
+
+
 function figmaAssetResolver() {
   return {
     name: 'figma-asset-resolver',
@@ -48,6 +51,7 @@ export default defineConfig({
         ]
       }
     }),
+    cloudflare()
   ],
   resolve: {
     alias: {
